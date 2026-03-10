@@ -59,10 +59,12 @@ async function dbGet(key, uid) {
 async function dbSet(key, val, uid) {
   try {
     const userId = uid || (firebase.auth().currentUser && firebase.auth().currentUser.uid);
-    if (!userId) return;
+    console.log("dbSet", key, "userId:", userId, "val type:", typeof val);
+    if (!userId) { console.warn("dbSet: userId 없음!"); return; }
     const toStore = (typeof val === "object") ? JSON.stringify(val) : val;
     await firebase.firestore().collection("users").doc(userId).collection("data").doc(key).set({ value: toStore });
-  } catch(e) {}
+    console.log("dbSet 저장 완료:", key);
+  } catch(e) { console.error("dbSet error:", e); }
 }
 async function dbGetLocal(key) { return dbGet(key); }
 
