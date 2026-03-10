@@ -1246,7 +1246,7 @@ function App({ user }) {
   const setSchedules  = useCallback(fn=>{setSchedulesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.s,n);return n;});},[]);
   const setCubes      = useCallback(fn=>{setCubesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.c,n);return n;});},[]);
   const setDishes     = useCallback(fn=>{setDishesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.d,n);return n;});},[]);
-  const setCategories = useCallback(fn=>{setCategoriesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.cat,n);return n;});},[]);
+  const setCategories = useCallback(fn=>{setCategoriesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.cat,n,firebase.auth().currentUser?.uid);return n;});},[]);
 
   const { stock, status } = calcStock(cubes, schedules, recipes);
   const hasEmpty = Object.values(stock).some(v=>v===0);
