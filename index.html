@@ -1246,7 +1246,14 @@ function App({ user }) {
   const setSchedules  = useCallback(fn=>{setSchedulesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.s,n);return n;});},[]);
   const setCubes      = useCallback(fn=>{setCubesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.c,n);return n;});},[]);
   const setDishes     = useCallback(fn=>{setDishesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.d,n);return n;});},[]);
-  const setCategories = useCallback(fn=>{setCategoriesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.cat,n,firebase.auth().currentUser?.uid);return n;});},[]);
+  const setCategories = useCallback(fn=>{setCategoriesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
+
+  // 데이터 변경 시 Firebase에 자동 저장
+  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; console.log("💾 recipes 저장"); firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.r).set({value:JSON.stringify(recipes)}); },[recipes, ready]);
+  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.s).set({value:JSON.stringify(schedules)}); },[schedules, ready]);
+  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.c).set({value:JSON.stringify(cubes)}); },[cubes, ready]);
+  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.d).set({value:JSON.stringify(dishes)}); },[dishes, ready]);
+  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.cat).set({value:JSON.stringify(categories)}); },[categories, ready]);
 
   const { stock, status } = calcStock(cubes, schedules, recipes);
   const hasEmpty = Object.values(stock).some(v=>v===0);
