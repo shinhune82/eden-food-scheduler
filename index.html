@@ -214,10 +214,13 @@ function calcStock(cubes, schedules, recipes) {
   });
   const stock = {};
   cubes.forEach(c => { stock[c.ingredient] = Math.max(0, c.count - (used[c.ingredient]||0)); });
+  const scheduledRecipeIds = new Set(schedules.map(s=>s.recipeId).filter(Boolean));
   const status = {};
   recipes.forEach(r => {
     const oos = r.ingredients.filter(ing => cubes.find(c=>c.ingredient===ing.name) && stock[ing.name]===0);
-    status[r.id] = { disabled: oos.length > 0, outOfStock: oos.map(i=>i.name) };
+    // 이미 스케쥴에 등록된 레시피는 재료가 소진돼도 비활성화하지 않음
+    const isScheduled = scheduledRecipeIds.has(r.id);
+    status[r.id] = { disabled: !isScheduled && oos.length > 0, outOfStock: oos.map(i=>i.name) };
   });
   return { stock, status };
 }
@@ -553,6 +556,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   const [rdrop, setRdrop] = useState(false);
   const [ddrop, setDdrop] = useState(false);
 
+  const [viewMode, setViewMode] = useState("week"); // "week" | "day"
+  const [dayView, setDayView] = useState(todayStr());
   const weekDates = getWeekDates(weekBase);
   const today = todayStr();
   const getEntry = (date, meal) => schedules.find(s=>s.date===date&&s.meal===meal);
@@ -614,6 +619,11 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         <span style={{fontWeight:700,color:"#333",fontSize:14}}>{fmtMD(weekDates[0])} ~ {fmtMD(weekDates[6])}</span>
         <button onClick={()=>{const d=new Date(weekBase);d.setDate(d.getDate()+7);setWeekBase(d.toISOString().slice(0,10));}} style={{background:"#f0f0f0",border:"none",borderRadius:10,padding:"6px 14px",cursor:"pointer",fontSize:18}}>&#8250;</button>
       </div>
+      {/* 뷰 모드 전환 */}
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        <button onClick={()=>setViewMode("week")} style={{flex:1,padding:"6px 0",borderRadius:10,border:"none",background:viewMode==="week"?"#7BC67E":"#f0f0f0",color:viewMode==="week"?"#fff":"#555",fontWeight:700,fontSize:12,cursor:"pointer"}}>📅 주간 보기</button>
+        <button onClick={()=>setViewMode("day")} style={{flex:1,padding:"6px 0",borderRadius:10,border:"none",background:viewMode==="day"?"#7BC67E":"#f0f0f0",color:viewMode==="day"?"#fff":"#555",fontWeight:700,fontSize:12,cursor:"pointer"}}>🍽️ 일별 보기</button>
+      </div>
       <div style={{overflowX:"auto"}}>
         <div style={{minWidth:520}}>
           <div style={{display:"grid",gridTemplateColumns:"48px repeat(7,1fr)",gap:3,marginBottom:3}}>
@@ -655,7 +665,52 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
             </div>
           ))}
         </div>
-      </div>
+      </div>}
+
+      {/* 일별 뷰 */}
+      {viewMode==="day" && (
+        <div>
+          {/* 날짜 선택 */}
+          <div style={{display:"flex",gap:4,overflowX:"auto",paddingBottom:6,marginBottom:10}}>
+            {weekDates.map((d,i)=>(
+              <button key={d} onClick={()=>setDayView(d)}
+                style={{minWidth:44,padding:"6px 4px",borderRadius:10,border:"2px solid "+(dayView===d?"#7BC67E":"transparent"),background:dayView===d?"#e8f8f0":d===today?"#f0fff4":"#f7f7f7",color:d===today?"#7BC67E":"#333",fontWeight:dayView===d?700:400,fontSize:11,cursor:"pointer",flexShrink:0}}>
+                {WEEKDAYS[i]}<br/><span style={{fontSize:13,fontWeight:700}}>{fmtMD(d).slice(3)}</span>
+              </button>
+            ))}
+          </div>
+          {/* 선택 날짜의 아침/점심/저녁 */}
+          <div style={{fontWeight:700,fontSize:14,color:"#333",marginBottom:10}}>{fmtMD(dayView)} 식단</div>
+          {MEALS.map(meal=>{
+            const ent = getEntry(dayView, meal);
+            const rec = ent ? recipes.find(r=>r.id===ent.recipeId) : null;
+            const dis = rec && (recipeStatus[rec.id]||{}).disabled;
+            const dish = ent ? dishes.find(d=>d.id===ent.dishId) : null;
+            return(
+              <div key={meal} onClick={()=>openCell(dayView,meal)}
+                style={{background:ent?(dis?"#fff0f0":rec?rec.color+"18":"#f9f9f9"):"#f9f9f9",border:"1.5px solid "+(ent?(dis?"#ffb3b3":rec?rec.color+"66":"#e0e0e0"):"#e8e8e8"),borderRadius:14,padding:"14px 16px",marginBottom:8,cursor:"pointer"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:ent?8:0}}>
+                  <span style={{fontSize:18}}>{MEAL_ICON[meal]}</span>
+                  <span style={{fontWeight:700,fontSize:13,color:"#555"}}>{meal}</span>
+                  {ent && rec && <span style={{fontWeight:700,fontSize:14,color:dis?"#e55":rec.color}}>{dis&&"🚫 "}{rec.name}</span>}
+                  {!ent && <span style={{fontSize:12,color:"#bbb"}}>+ 추가</span>}
+                  {dish && <span style={{fontSize:11,color:"#999",marginLeft:"auto"}}>{dish.icon} {dish.name}</span>}
+                </div>
+                {ent && rec && (
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                    {rec.ingredients.map((ing,i)=>(
+                      <span key={i} style={{background:rec.color+"22",borderRadius:20,padding:"2px 8px",fontSize:11,color:"#555"}}>
+                        {ing.name} x{ing.cubeCount}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {ent && ent.memo && <div style={{fontSize:11,color:"#999",marginTop:4}}>📝 {ent.memo}</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <Overlay open={modal} onClose={()=>setModal(false)} wide title={target.date ? fmtFull(target.date)+" "+MEAL_ICON[target.meal]+" "+target.meal : ""}>
         {/* 레시피 선택 */}
