@@ -116,7 +116,7 @@ function LoginScreen() {
   );
 }
 
-const STORAGE_KEYS = { r:"bf_r6", s:"bf_s6", c:"bf_c6", d:"bf_d6", cat:"bf_cat2" };
+const STORAGE_KEYS = { r:"bf_r6", s:"bf_s6", c:"bf_c6", d:"bf_d6", cat:"bf_cat2", making:"bf_making1" };
 // 이전 버전 로컬 키 (마이그레이션용)
 const LEGACY_KEYS = {
   r:   ["bf_r5","bf_r4","bf_r3"],
@@ -875,11 +875,11 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
 // ────────────────────────────
 // 큐브 탭
 // ────────────────────────────
-function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, setCategories }) {
+function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, setCategories, makingIds=[], setMakingIds }) {
   const [modal, setModal] = useState(false);
   const [catModal, setCatModal] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [makingIds, setMakingIds] = useState([]);
+
   const [editCatId, setEditCatId] = useState(null);
   const [form, setForm] = useState({ingredient:"",count:"",madeDate:todayStr(),weightG:"",categoryId:""});
   const [catForm, setCatForm] = useState({name:"",color:"#C8F0C0"});
@@ -1228,6 +1228,7 @@ function App({ user }) {
   const [cubes, setCubesRaw] = useState([]);
   const [dishes, setDishesRaw] = useState([]);
   const [categories, setCategoriesRaw] = useState([]);
+  const [makingIds, setMakingIdsRaw] = useState([]);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -1261,12 +1262,14 @@ function App({ user }) {
       const c   = await loadWithMigration(STORAGE_KEYS.c,   LEGACY_KEYS.c);
       const d   = await loadWithMigration(STORAGE_KEYS.d,   LEGACY_KEYS.d);
       const cat = await loadWithMigration(STORAGE_KEYS.cat, LEGACY_KEYS.cat);
+      const making = await fsGet(STORAGE_KEYS.making);
       console.log("📦 r:", r, "setRecipes 호출");
       setRecipesRaw(r   || INIT_RECIPES);
       setSchedulesRaw(s || []);
       setCubesRaw(c     || INIT_CUBES);
       setDishesRaw(d    || INIT_DISHES);
       setCategoriesRaw(cat || INIT_CATEGORIES);
+      setMakingIdsRaw(making || []);
       setReady(true);
     };
       await init();
@@ -1279,6 +1282,7 @@ function App({ user }) {
   const setCubes      = useCallback(fn=>{setCubesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.c,n);return n;});},[]);
   const setDishes     = useCallback(fn=>{setDishesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.d,n);return n;});},[]);
   const setCategories = useCallback(fn=>{setCategoriesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
+  const setMakingIds = useCallback(fn=>{setMakingIdsRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
 
   // 데이터 변경 시 Firebase에 자동 저장
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; console.log("💾 recipes 저장"); firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.r).set({value:JSON.stringify(recipes)}); },[recipes, ready]);
@@ -1286,6 +1290,7 @@ function App({ user }) {
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.c).set({value:JSON.stringify(cubes)}); },[cubes, ready]);
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.d).set({value:JSON.stringify(dishes)}); },[dishes, ready]);
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.cat).set({value:JSON.stringify(categories)}); },[categories, ready]);
+  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.making).set({value:JSON.stringify(makingIds)}); },[makingIds, ready]);
 
   const { stock, status } = calcStock(cubes, schedules, recipes);
   const hasEmpty = Object.values(stock).some(v=>v===0);
@@ -1296,7 +1301,7 @@ function App({ user }) {
   const TABS = [
     { label:"🍳 레시피", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} /> },
     { label:"📅 스케줄", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} /> },
-    { label:"🧊 큐브",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} /> },
+    { label:"🧊 큐브",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} makingIds={makingIds} setMakingIds={setMakingIds} /> },
     { label:"🍽️ 식기",  el:<DishTab dishes={dishes} setDishes={setDishes} /> },
   ];
 
