@@ -641,8 +641,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 const vol = rec ? cubeVolume(rec,cubes) : 0;
                 const entSlotTokens = ent && ent.slots ? Object.values(ent.slots).flat() : [];
                 const entChecked = ent && ent.checked ? ent.checked : [];
-                // 슬롯 있는 경우만 완료/부족 판정 (슬롯 없으면 tokenKey 불일치 가능)
-                const entTokens = entSlotTokens.length>0 ? entSlotTokens : [];
+                // 슬롯 있으면 슬롯 토큰 기준, 없으면 checked 자체 기준
+                const entTokens = entSlotTokens.length>0 ? entSlotTokens : (rec ? ingredientsToTokens(rec.ingredients).map(t=>t.tokenKey) : []);
                 const checkedInTokens = entTokens.filter(tk=>entChecked.includes(tk));
                 const allDone = entTokens.length>0 && checkedInTokens.length===entTokens.length;
                 const partDone = entTokens.length>0 && checkedInTokens.length>0 && !allDone;
@@ -684,9 +684,11 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
           const newChecked = checked.includes(tokenKey) ? checked.filter(x=>x!==tokenKey) : [...checked,tokenKey];
           setSchedules(ss=>ss.map(s=>s.date===dayView&&s.meal===meal ? {...s,checked:newChecked} : s));
         };
-        // 슬롯의 모든 토큰 목록 (슬롯 있는 경우만 완료/부족 판정)
+        // 슬롯 있으면 슬롯 토큰 기준, 없으면 ingredientsToTokens 기준
         const slotTokensList = Object.values(ent&&ent.slots ? ent.slots : {}).flat();
-        const allTokens = slotTokensList; // 슬롯 없으면 빈 배열
+        const allTokens = slotTokensList.length>0
+          ? slotTokensList
+          : (rec ? ingredientsToTokens(rec.ingredients).map(t=>t.tokenKey) : []);
         const totalTokens = allTokens.length;
         const checkedInSlot = allTokens.filter(tk=>checked.includes(tk));
         const isAllChecked = totalTokens > 0 && checkedInSlot.length === totalTokens;
