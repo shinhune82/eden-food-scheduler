@@ -141,7 +141,7 @@ async function dbGetLocal(key) {
 }
 
 const uid = () => Math.random().toString(36).slice(2,9);
-const todayStr = () => new Date().toISOString().slice(0,10);
+const todayStr = () => { const d = new Date(); const kst = new Date(d.getTime() + 9*60*60*1000); return kst.toISOString().slice(0,10); };
 const fmtMD = d => { const [,m,day]=d.split("-"); return `${m}/${day}`; };
 const fmtFull = d => { const [y,m,day]=d.split("-"); return `${y}년 ${m}월 ${day}일`; };
 const MEALS = ["아침","점심","저녁"];
@@ -556,7 +556,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   const [rdrop, setRdrop] = useState(false);
   const [ddrop, setDdrop] = useState(false);
 
-  const [viewMode, setViewMode] = useState("week"); // "week" | "day"
   const [dayView, setDayView] = useState(todayStr());
   const weekDates = getWeekDates(weekBase);
   const today = todayStr();
@@ -606,30 +605,26 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
     <div>
       {disabledCount>0 && (
         <div style={{background:"#fff0f0",border:"1.5px solid #ffb3b3",borderRadius:12,padding:"10px 14px",marginBottom:14}}>
-          <div style={{fontWeight:700,fontSize:13,color:"#c00"}}>🚫 사용 불가 레시피 {disabledCount}개</div>
-          <div style={{fontSize:11,color:"#e55",marginTop:3}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#c00",marginBottom:4}}>🚫 재료 소진으로 사용 불가: {disabledCount}개</div>
+          <div style={{fontSize:11,color:"#e55"}}>
             {recipes.filter(r=>(recipeStatus[r.id]||{}).disabled).map(r=>(
-              <span key={r.id} style={{marginRight:8}}>{r.name}</span>
+              <span key={r.id} style={{marginRight:8}}>{r.name} ({(recipeStatus[r.id]||{}).outOfStock.join(", ")} 없음)</span>
             ))}
           </div>
         </div>
       )}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
         <button onClick={()=>{const d=new Date(weekBase);d.setDate(d.getDate()-7);setWeekBase(d.toISOString().slice(0,10));}} style={{background:"#f0f0f0",border:"none",borderRadius:10,padding:"6px 14px",cursor:"pointer",fontSize:18}}>&#8249;</button>
         <span style={{fontWeight:700,color:"#333",fontSize:14}}>{fmtMD(weekDates[0])} ~ {fmtMD(weekDates[6])}</span>
         <button onClick={()=>{const d=new Date(weekBase);d.setDate(d.getDate()+7);setWeekBase(d.toISOString().slice(0,10));}} style={{background:"#f0f0f0",border:"none",borderRadius:10,padding:"6px 14px",cursor:"pointer",fontSize:18}}>&#8250;</button>
       </div>
-      {/* 뷰 모드 전환 */}
-      <div style={{display:"flex",gap:6,marginBottom:10}}>
-        <button onClick={()=>setViewMode("week")} style={{flex:1,padding:"6px 0",borderRadius:10,border:"none",background:viewMode==="week"?"#7BC67E":"#f0f0f0",color:viewMode==="week"?"#fff":"#555",fontWeight:700,fontSize:12,cursor:"pointer"}}>📅 주간 보기</button>
-        <button onClick={()=>setViewMode("day")} style={{flex:1,padding:"6px 0",borderRadius:10,border:"none",background:viewMode==="day"?"#7BC67E":"#f0f0f0",color:viewMode==="day"?"#fff":"#555",fontWeight:700,fontSize:12,cursor:"pointer"}}>🍽️ 일별 보기</button>
-      </div>
-      <div style={{overflowX:"auto"}}>
+      <div style={{overflowX:"auto",marginBottom:14}}>
         <div style={{minWidth:520}}>
-          <div style={{display:"grid",gridTemplateColumns:"48px repeat(7,1fr)",gap:3,marginBottom:3}}>
-            <div />
+          <div style={{display:"grid",gridTemplateColumns:"48px repeat(7,1fr)",gap:3,marginBottom:4}}>
+            <div/>
             {weekDates.map((d,i) => (
-              <div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:d===today?"#7BC67E":i>=5?"#E78F8F":"#888",padding:"4px 0"}}>
+              <div key={d} onClick={()=>setDayView(d)}
+                style={{textAlign:"center",fontSize:11,fontWeight:700,color:d===today?"#7BC67E":i>=5?"#E78F8F":"#888",padding:"4px 0",cursor:"pointer",background:dayView===d?"#e8f8f0":"transparent",borderRadius:8}}>
                 {WEEKDAYS[i]}<br/><span style={{fontSize:13,color:d===today?"#7BC67E":"#555"}}>{fmtMD(d).slice(3)}</span>
               </div>
             ))}
@@ -644,19 +639,18 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 const rec = ent ? recipes.find(r=>r.id===ent.recipeId) : null;
                 const dis = rec && (recipeStatus[rec.id]||{}).disabled;
                 const vol = rec ? cubeVolume(rec,cubes) : 0;
-                const done = rec && ent && ent.checked && ent.checked.length===rec.ingredients.length;
+                const done = ent && ent.checked && ent.checked.length>0;
                 return(
                   <div key={d} onClick={()=>openCell(d,meal)}
                     style={{minHeight:72,borderRadius:10,cursor:"pointer",padding:4,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",
-                      background:dis?"#fff5f5":rec?rec.color+"22":"#f9f9f9",
-                      border:dis?"1.5px solid #ffb3b3":rec?"1.5px solid "+rec.color+"55":"1.5px dashed #e0e0e0"}}>
+                      background:d===dayView?(rec?rec.color+"44":"#e8f8f0"):(dis?"#fff5f5":rec?rec.color+"22":"#f9f9f9"),
+                      border:d===dayView?"2px solid #7BC67E":(dis?"1.5px solid #ffb3b3":rec?"1.5px solid "+rec.color+"55":"1.5px dashed #e0e0e0")}}>
                     {rec ? (
                       <div style={{textAlign:"center"}}>
                         {dis && <div style={{fontSize:9,color:"#e55",fontWeight:700}}>🚫재료없음</div>}
                         <div style={{fontSize:10,fontWeight:700,color:dis?"#c88":"#444",lineHeight:1.3}}>{rec.name}</div>
                         {vol>0 && <div style={{fontSize:9,color:"#4a9",marginTop:1}}>{vol}g</div>}
-                        {ent && ent.amount && <div style={{fontSize:9,color:"#999",marginTop:1}}>{ent.amount}</div>}
-                        {done && !dis && <div style={{fontSize:9,color:rec.color,marginTop:1}}>✓완료</div>}
+                        {done && !dis && <div style={{fontSize:9,color:rec.color,marginTop:1}}>✓</div>}
                       </div>
                     ) : <div style={{color:"#ccc",fontSize:18}}>+</div>}
                   </div>
@@ -665,52 +659,82 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
             </div>
           ))}
         </div>
-      </div>}
+      </div>
 
-      {/* 일별 뷰 */}
-      {viewMode==="day" && (
-        <div>
-          {/* 날짜 선택 */}
-          <div style={{display:"flex",gap:4,overflowX:"auto",paddingBottom:6,marginBottom:10}}>
-            {weekDates.map((d,i)=>(
-              <button key={d} onClick={()=>setDayView(d)}
-                style={{minWidth:44,padding:"6px 4px",borderRadius:10,border:"2px solid "+(dayView===d?"#7BC67E":"transparent"),background:dayView===d?"#e8f8f0":d===today?"#f0fff4":"#f7f7f7",color:d===today?"#7BC67E":"#333",fontWeight:dayView===d?700:400,fontSize:11,cursor:"pointer",flexShrink:0}}>
-                {WEEKDAYS[i]}<br/><span style={{fontSize:13,fontWeight:700}}>{fmtMD(d).slice(3)}</span>
-              </button>
-            ))}
-          </div>
-          {/* 선택 날짜의 아침/점심/저녁 */}
-          <div style={{fontWeight:700,fontSize:14,color:"#333",marginBottom:10}}>{fmtMD(dayView)} 식단</div>
-          {MEALS.map(meal=>{
-            const ent = getEntry(dayView, meal);
-            const rec = ent ? recipes.find(r=>r.id===ent.recipeId) : null;
-            const dis = rec && (recipeStatus[rec.id]||{}).disabled;
-            const dish = ent ? dishes.find(d=>d.id===ent.dishId) : null;
-            return(
-              <div key={meal} onClick={()=>openCell(dayView,meal)}
-                style={{background:ent?(dis?"#fff0f0":rec?rec.color+"18":"#f9f9f9"):"#f9f9f9",border:"1.5px solid "+(ent?(dis?"#ffb3b3":rec?rec.color+"66":"#e0e0e0"):"#e8e8e8"),borderRadius:14,padding:"14px 16px",marginBottom:8,cursor:"pointer"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:ent?8:0}}>
-                  <span style={{fontSize:18}}>{MEAL_ICON[meal]}</span>
-                  <span style={{fontWeight:700,fontSize:13,color:"#555"}}>{meal}</span>
-                  {ent && rec && <span style={{fontWeight:700,fontSize:14,color:dis?"#e55":rec.color}}>{dis&&"🚫 "}{rec.name}</span>}
-                  {!ent && <span style={{fontSize:12,color:"#bbb"}}>+ 추가</span>}
-                  {dish && <span style={{fontSize:11,color:"#999",marginLeft:"auto"}}>{dish.icon} {dish.name}</span>}
-                </div>
-                {ent && rec && (
-                  <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                    {rec.ingredients.map((ing,i)=>(
-                      <span key={i} style={{background:rec.color+"22",borderRadius:20,padding:"2px 8px",fontSize:11,color:"#555"}}>
-                        {ing.name} x{ing.cubeCount}
-                      </span>
-                    ))}
+      {/* 일별 식단 */}
+      <div style={{fontWeight:700,fontSize:14,color:"#333",marginBottom:8}}>{fmtMD(dayView)} 식단</div>
+      {MEALS.map(meal=>{
+        const ent = getEntry(dayView, meal);
+        const rec = ent ? recipes.find(r=>r.id===ent.recipeId) : null;
+        const dis = rec && (recipeStatus[rec.id]||{}).disabled;
+        const dish = ent ? dishes.find(d=>d.id===ent.dishId) : null;
+        const slots = ent && ent.slots ? ent.slots : {};
+        const hasSlots = dish && dish.slots && dish.slots.length>0;
+        const allIngNames = rec ? rec.ingredients.map(i=>i.name) : [];
+        const checked = ent && ent.checked ? ent.checked : [];
+        const toggleDayCheck = (name) => {
+          const newChecked = checked.includes(name) ? checked.filter(x=>x!==name) : [...checked,name];
+          setSchedules(ss=>ss.map(s=>s.date===dayView&&s.meal===meal ? {...s,checked:newChecked} : s));
+        };
+        return(
+          <div key={meal} style={{background:ent?(dis?"#fff0f0":rec?rec.color+"18":"#f9f9f9"):"#f9f9f9",
+            border:"1.5px solid "+(ent?(dis?"#ffb3b3":rec?rec.color+"66":"#e0e0e0"):"#e8e8e8"),
+            borderRadius:14,marginBottom:8,overflow:"hidden"}}>
+            <div onClick={()=>openCell(dayView,meal)}
+              style={{display:"flex",alignItems:"center",gap:8,padding:"12px 16px",cursor:"pointer",borderBottom:ent?"1px solid "+(rec?rec.color+"33":"#eee"):"none"}}>
+              <span style={{fontSize:18}}>{MEAL_ICON[meal]}</span>
+              <span style={{fontWeight:700,fontSize:13,color:"#555"}}>{meal}</span>
+              {ent && rec && <span style={{fontWeight:700,fontSize:14,color:dis?"#e55":rec.color}}>{dis&&"🚫 "}{rec.name}</span>}
+              {!ent && <span style={{fontSize:12,color:"#bbb"}}>+ 추가</span>}
+              {dish && <span style={{fontSize:11,color:"#777",marginLeft:"auto"}}>{dish.icon} {dish.name}</span>}
+            </div>
+            {ent && rec && (
+              <div style={{padding:"10px 16px"}}>
+                {hasSlots ? (
+                  dish.slots.map(slot=>{
+                    const slotItems = slots[slot]||[];
+                    const slotIngItems = slotItems.filter(n=>!n.includes("__g"));
+                    return(
+                      <div key={slot} style={{marginBottom:8}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:4}}>📌 {slot}</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                          {slotIngItems.length>0 ? slotIngItems.map(name=>(
+                            <label key={name} onClick={e=>e.stopPropagation()}
+                              style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(name)?"#e8f8f0":"#f5f5f5",
+                                border:"1px solid "+(checked.includes(name)?"#7BC67E":"#ddd"),
+                                borderRadius:20,padding:"3px 10px",cursor:"pointer",fontSize:12}}>
+                              <input type="checkbox" checked={checked.includes(name)} onChange={()=>toggleDayCheck(name)}
+                                style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
+                              {name}
+                            </label>
+                          )) : <span style={{fontSize:11,color:"#bbb"}}>재료 없음</span>}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div>
+                    <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:6}}>재료 체크</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                      {allIngNames.map(name=>(
+                        <label key={name} onClick={e=>e.stopPropagation()}
+                          style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(name)?"#e8f8f0":"#f5f5f5",
+                            border:"1px solid "+(checked.includes(name)?"#7BC67E":"#ddd"),
+                            borderRadius:20,padding:"3px 10px",cursor:"pointer",fontSize:12}}>
+                          <input type="checkbox" checked={checked.includes(name)} onChange={()=>toggleDayCheck(name)}
+                            style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
+                          {name}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 )}
-                {ent && ent.memo && <div style={{fontSize:11,color:"#999",marginTop:4}}>📝 {ent.memo}</div>}
+                {ent.memo && <div style={{fontSize:11,color:"#999",marginTop:6}}>📝 {ent.memo}</div>}
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })}
 
       <Overlay open={modal} onClose={()=>setModal(false)} wide title={target.date ? fmtFull(target.date)+" "+MEAL_ICON[target.meal]+" "+target.meal : ""}>
         {/* 레시피 선택 */}
