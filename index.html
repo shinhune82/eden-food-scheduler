@@ -639,7 +639,10 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 const rec = ent ? recipes.find(r=>r.id===ent.recipeId) : null;
                 const dis = rec && (recipeStatus[rec.id]||{}).disabled;
                 const vol = rec ? cubeVolume(rec,cubes) : 0;
-                const entTokens = ent && ent.slots ? Object.values(ent.slots).flat() : [];
+                const entSlotTokens = ent && ent.slots ? Object.values(ent.slots).flat() : [];
+                const entTokens = entSlotTokens.length>0
+                  ? entSlotTokens
+                  : (rec ? ingredientsToTokens(rec.ingredients).map(t=>t.tokenKey) : []);
                 const entChecked = ent && ent.checked ? ent.checked : [];
                 const allDone = entTokens.length>0 && entTokens.every(tk=>entChecked.includes(tk));
                 const partDone = entTokens.length>0 && entChecked.length>0 && !allDone;
@@ -681,8 +684,11 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
           const newChecked = checked.includes(tokenKey) ? checked.filter(x=>x!==tokenKey) : [...checked,tokenKey];
           setSchedules(ss=>ss.map(s=>s.date===dayView&&s.meal===meal ? {...s,checked:newChecked} : s));
         };
-        // 슬롯의 모든 토큰 목록
-        const allTokens = Object.values(ent&&ent.slots ? ent.slots : {}).flat();
+        // 슬롯의 모든 토큰 목록 (슬롯 없으면 ingredientsToTokens 기준)
+        const slotTokensList = Object.values(ent&&ent.slots ? ent.slots : {}).flat();
+        const allTokens = slotTokensList.length>0
+          ? slotTokensList
+          : (rec ? ingredientsToTokens(rec.ingredients).map(t=>t.tokenKey) : []);
         const totalTokens = allTokens.length;
         const checkedTokenCount = allTokens.filter(tk=>checked.includes(tk)).length;
         const isAllChecked = totalTokens > 0 && checkedTokenCount === totalTokens;
@@ -740,16 +746,20 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                   <div>
                     <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:6}}>재료 체크</div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                      {allIngNames.map(name=>(
-                        <label key={name} onClick={e=>e.stopPropagation()}
-                          style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(name)?"#e8f8f0":"#f5f5f5",
-                            border:"1px solid "+(checked.includes(name)?"#7BC67E":"#ddd"),
-                            borderRadius:20,padding:"3px 10px",cursor:"pointer",fontSize:12}}>
-                          <input type="checkbox" checked={checked.includes(name)} onChange={()=>toggleDayCheck(name)}
-                            style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
-                          {name}
-                        </label>
-                      ))}
+                      {ingredientsToTokens(rec.ingredients).map(({tokenKey,ingName})=>{
+                        const allToks = ingredientsToTokens(rec.ingredients);
+                        const label = tokenLabel(tokenKey, allToks);
+                        return(
+                          <label key={tokenKey} onClick={e=>e.stopPropagation()}
+                            style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(tokenKey)?"#e8f8f0":"#f5f5f5",
+                              border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),
+                              borderRadius:20,padding:"3px 10px",cursor:"pointer",fontSize:12}}>
+                            <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)}
+                              style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
+                            {label}
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : null}
