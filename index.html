@@ -879,6 +879,7 @@ function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, se
   const [modal, setModal] = useState(false);
   const [catModal, setCatModal] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [makingIds, setMakingIds] = useState([]);
   const [editCatId, setEditCatId] = useState(null);
   const [form, setForm] = useState({ingredient:"",count:"",madeDate:todayStr(),weightG:"",categoryId:""});
   const [catForm, setCatForm] = useState({name:"",color:"#C8F0C0"});
@@ -940,17 +941,48 @@ function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, se
     <div>
       {empties.length>0 && (
         <div style={{background:"#fff0f0",border:"1.5px solid #ffb3b3",borderRadius:14,padding:"12px 16px",marginBottom:10}}>
-          <div style={{fontWeight:700,fontSize:13,color:"#c00",marginBottom:6}}>🚫 소진 ({empties.length}종)</div>
+          <div style={{fontWeight:700,fontSize:13,color:"#c00",marginBottom:6}}>🚫 소진 ({empties.length}종) <span style={{fontSize:11,fontWeight:400,color:"#999"}}>탭하면 제조 중으로</span></div>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {empties.map(c=><span key={c.id} style={{background:"#ffd6d6",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700,color:"#c00"}}>{c.ingredient} 0개</span>)}
+            {empties.map(c=>(
+              <span key={c.id} onClick={()=>setMakingIds(p=>p.includes(c.id)?p:[...p,c.id])}
+                style={{background:"#ffd6d6",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700,color:"#c00",cursor:"pointer",opacity:makingIds.includes(c.id)?0.4:1}}>
+                {c.ingredient} 0개
+              </span>
+            ))}
           </div>
         </div>
       )}
       {lows.length>0 && (
         <div style={{background:"#fff3cd",border:"1.5px solid #ffc107",borderRadius:14,padding:"12px 16px",marginBottom:10}}>
-          <div style={{fontWeight:700,fontSize:13,color:"#856404",marginBottom:6}}>⚠️ 부족 ({lows.length}종)</div>
+          <div style={{fontWeight:700,fontSize:13,color:"#856404",marginBottom:6}}>⚠️ 부족 ({lows.length}종) <span style={{fontSize:11,fontWeight:400,color:"#999"}}>탭하면 제조 중으로</span></div>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {lows.map(c=><span key={c.id} style={{background:"#ffe08a",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:600,color:"#856404"}}>{c.ingredient} {stock[c.ingredient]}개</span>)}
+            {lows.map(c=>(
+              <span key={c.id} onClick={()=>setMakingIds(p=>p.includes(c.id)?p:[...p,c.id])}
+                style={{background:"#ffe08a",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:600,color:"#856404",cursor:"pointer",opacity:makingIds.includes(c.id)?0.4:1}}>
+                {c.ingredient} {stock[c.ingredient]}개
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {makingIds.length>0 && (
+        <div style={{background:"#e8f4fd",border:"1.5px solid #7BC9E8",borderRadius:14,padding:"12px 16px",marginBottom:10}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#1a6fa8",marginBottom:6}}>🍳 제조 중 ({makingIds.length}종) <span style={{fontSize:11,fontWeight:400,color:"#999"}}>탭하면 수정</span></div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {makingIds.map(id=>{
+              const c = cubes.find(x=>x.id===id); if(!c) return null;
+              return (
+                <span key={id} onClick={()=>{
+                  setEditId(c.id);
+                  setForm({ingredient:c.ingredient,count:c.count,madeDate:c.madeDate,weightG:c.weightG,categoryId:c.categoryId||""});
+                  setModal(true);
+                  setMakingIds(p=>p.filter(x=>x!==id));
+                }}
+                  style={{background:"#b3e0f7",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700,color:"#1a6fa8",cursor:"pointer"}}>
+                  {c.ingredient} {stock[c.ingredient]}개 ✏️
+                </span>
+              );
+            })}
           </div>
         </div>
       )}
