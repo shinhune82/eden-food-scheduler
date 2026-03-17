@@ -555,6 +555,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   const [form, setForm] = useState({recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{}});
   const [rdrop, setRdrop] = useState(false);
   const [ddrop, setDdrop] = useState(false);
+  const [rdropSearch, setRdropSearch] = useState("");
 
   const [dayView, setDayView] = useState(todayStr());
   const weekDates = getWeekDates(weekBase);
@@ -774,7 +775,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         {/* 레시피 선택 */}
         <div style={{marginBottom:12,position:"relative"}}>
           <div style={{fontSize:12,color:"#888",marginBottom:5}}>레시피 선택</div>
-          <div onClick={()=>{setRdrop(o=>!o);setDdrop(false);}} style={{padding:"10px 14px",border:"1.5px solid #e8e8e8",borderRadius:12,cursor:"pointer",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div onClick={()=>{setRdrop(o=>{if(!o)setRdropSearch("");return !o;});setDdrop(false);}} style={{padding:"10px 14px",border:"1.5px solid #e8e8e8",borderRadius:12,cursor:"pointer",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             {selRec ? (
               <span style={{display:"flex",alignItems:"center",gap:8}}>
                 <span style={{width:10,height:10,borderRadius:"50%",background:selRec.color,display:"inline-block"}} />
@@ -785,7 +786,12 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
           </div>
           {rdrop && (
             <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:200,background:"#fff",border:"1.5px solid #e8e8e8",borderRadius:12,boxShadow:"0 8px 24px rgba(0,0,0,0.1)",overflow:"hidden",marginTop:4}}>
-              {recipes.map(r => {
+              <div style={{padding:"8px 10px",borderBottom:"1px solid #f0f0f0"}}>
+                <input autoFocus value={rdropSearch} onChange={e=>setRdropSearch(e.target.value)}
+                  placeholder="레시피 검색..." onClick={e=>e.stopPropagation()}
+                  style={{width:"100%",padding:"6px 10px",border:"1.5px solid #e0e0e0",borderRadius:8,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              {[...recipes].sort((a,b)=>a.name.localeCompare(b.name,"ko")).filter(r=>r.name.includes(rdropSearch)).map(r => {
                 const st = recipeStatus[r.id] || {disabled:false,outOfStock:[]};
                 return(
                   <div key={r.id}
@@ -814,14 +820,33 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
             </div>
           )}
         </div>
-        {/* 식기 - 레시피에 지정된 식기 자동 표시 */}
-        {selDish && (
-          <div style={{marginBottom:12,padding:"10px 14px",background:"#f0faf5",border:"1.5px solid #7BC67E44",borderRadius:12,display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:16}}>{selDish.icon}</span>
-            <span style={{flex:1}}>
-              <span style={{fontWeight:600,fontSize:13,color:"#333"}}>{selDish.name}</span>
-              <span style={{fontSize:11,color:"#7a9",marginLeft:6}}>레시피에 지정된 식기</span>
-            </span>
+        {/* 식기 선택 - 레시피 기본값, 변경 가능 */}
+        {selRec && (
+          <div style={{marginBottom:12,position:"relative"}}>
+            <div style={{fontSize:12,color:"#888",marginBottom:5}}>식기 <span style={{fontSize:10,color:"#aaa"}}>(레시피 기본값, 변경 가능)</span></div>
+            <div onClick={()=>{setDdrop(o=>!o);setRdrop(false);}}
+              style={{padding:"10px 14px",border:"1.5px solid #e8e8e8",borderRadius:12,cursor:"pointer",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              {selDish ? (
+                <span style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:16}}>{selDish.icon}</span>
+                  <span style={{fontWeight:600,fontSize:13,color:"#333"}}>{selDish.name}</span>
+                </span>
+              ) : <span style={{color:"#bbb",fontSize:13}}>식기 없음</span>}
+              <span style={{color:"#aaa"}}>{ddrop?"▲":"▼"}</span>
+            </div>
+            {ddrop && (
+              <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:200,background:"#fff",border:"1.5px solid #e8e8e8",borderRadius:12,boxShadow:"0 8px 24px rgba(0,0,0,0.1)",overflow:"hidden",marginTop:4}}>
+                {dishes.map(d=>(
+                  <div key={d.id} onClick={e=>{e.stopPropagation();pickDish(d.id);}}
+                    style={{padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,
+                      background:form.dishId===d.id?"#e8f8f0":"#fff",borderBottom:"1px solid #f5f5f5"}}>
+                    <span style={{fontSize:18}}>{d.icon}</span>
+                    <span style={{fontSize:13,fontWeight:form.dishId===d.id?700:400,color:"#333"}}>{d.name}</span>
+                    <span style={{fontSize:11,color:"#aaa",marginLeft:"auto"}}>{d.slots.join(" · ")}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
