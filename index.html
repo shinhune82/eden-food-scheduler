@@ -719,6 +719,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                       return ing ? {tokenKey:tk, ingName} : null;
                     }).filter(Boolean);
                     if(tokensToShow.length===0) return null;
+                    // 슬롯 전체 토큰으로 tokenLabel 계산
+                    const allDaySlotTokenObjs = Object.values(slots).flat().map(tk=>({tokenKey:tk,ingName:tk.split("__g")[0]}));
                     const slotAllChecked = tokensToShow.every(t=>checked.includes(t.tokenKey));
                     return(
                       <div key={slot} style={{marginBottom:8,borderRadius:12,border:"1.5px solid "+(slotAllChecked?"#7BC67E":"#e0e0e0"),overflow:"hidden"}}>
@@ -736,7 +738,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                                 borderRadius:20,padding:"4px 10px",cursor:"pointer",fontSize:12}}>
                               <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)}
                                 style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
-                              {ingName}
+                              {tokenLabel(tokenKey, allDaySlotTokenObjs)}
                             </label>
                           ))}
                         </div>
@@ -867,6 +869,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 {(()=>{
                   // tokenKey: "재료명__인덱스" 방식 - 동일 재료 여러 개 구분
                   const allSlotTokens = selDish.slots.flatMap(s=>form.slots[s]||[]);
+                  const allSlotTokenObjs = allSlotTokens.map(tk=>({tokenKey:tk, ingName:tk.split("__g")[0]}));
                   return selDish.slots.map((slot,si)=>{
                     const slotTokens = form.slots[slot]||[];
                     // 이 칸에 배치된 토큰들을 재료 정보와 매핑
@@ -890,8 +893,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                             const chk = form.checked.includes(tokenKey);
                             const cube = cubes.find(c=>c.ingredient===ingName);
                             const g = cube&&cube.weightG>0 ? 1*cube.weightG : 0;
-                            const allToks = ingredientsToTokens(selRec.ingredients);
-                            const label = tokenLabel(tokenKey, allToks);
+                            const label = tokenLabel(tokenKey, allSlotTokenObjs);
                             return(
                               <div key={tokenKey} onClick={()=>toggleCheck(tokenKey)}
                                 style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"8px 10px",borderRadius:10,
