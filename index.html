@@ -813,32 +813,35 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 const filtered = [...recipes].filter(r=>r.name.includes(rdropSearch));
                 const favs = filtered.filter(r=>r.favorite).sort((a,b)=>a.name.localeCompare(b.name,"ko"));
                 const others = filtered.filter(r=>!r.favorite).sort((a,b)=>a.name.localeCompare(b.name,"ko"));
-                const ordered = rdropSearch ? filtered.sort((a,b)=>a.name.localeCompare(b.name,"ko")) : [...favs.length>0?[{_divider:"fav"}]:[],[...favs],...others.length>0&&favs.length>0?[{_divider:"all"}]:[],...others];
-                return ordered.map(r => {
-                  if(r._divider==="fav") return <div key="div-fav" style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#f9a825",background:"#fffde7",borderBottom:"1px solid #fff9c4"}}>⭐ 즐겨찾기</div>;
-                  if(r._divider==="all") return <div key="div-all" style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#999",background:"#fafafa",borderBottom:"1px solid #f0f0f0"}}>전체 레시피</div>;
-                const st = recipeStatus[r.id] || {disabled:false,outOfStock:[]};
-                return(
-                  <div key={r.id}
-                    onClick={e=>{e.stopPropagation();pickRecipe(r.id,recipes);}}
-                    style={{padding:"12px 14px",cursor:st.disabled?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:8,
-                      background:st.disabled?"#fdf5f5":form.recipeId===r.id?r.color+"22":"#fff",
-                      borderBottom:"1px solid #f5f5f5",opacity:st.disabled?0.65:1}}>
-                    <span style={{width:12,height:12,borderRadius:"50%",background:st.disabled?"#ccc":r.color,flexShrink:0}} />
-                    <span style={{flex:1}}>
-                      <span style={{fontWeight:form.recipeId===r.id?700:400,fontSize:14,color:st.disabled?"#aaa":"#333"}}>{st.disabled&&"🚫 "}{r.name}</span>
-                      {st.disabled && <span style={{display:"block",fontSize:10,color:"#e55",marginTop:1}}>재고 없음: {st.outOfStock.join(", ")}</span>}
-                    </span>
-                    {!st.disabled && (()=>{
-                      const vol=cubeVolume(r,cubes);
-                      const totalC=r.ingredients.reduce((s,x)=>s+x.cubeCount,0);
-                      return(
-                        <span style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
+                const showFav = !rdropSearch && favs.length>0;
+                const showAll = !rdropSearch && favs.length>0 && others.length>0;
+                const list = rdropSearch ? filtered.sort((a,b)=>a.name.localeCompare(b.name,"ko")) : [...favs,...others];
+                return (<>
+                  {showFav && <div style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#f9a825",background:"#fffde7",borderBottom:"1px solid #fff9c4"}}>⭐ 즐겨찾기</div>}
+                  {list.map((r,ri)=>{
+                    const st = recipeStatus[r.id]||{disabled:false,outOfStock:[]};
+                    const vol = cubeVolume(r,cubes);
+                    const totalC = r.ingredients.reduce((s,x)=>s+(Number(x.cubeCount)||0),0);
+                    return(<React.Fragment key={r.id}>
+                      {showAll && ri===favs.length && <div style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#999",background:"#fafafa",borderBottom:"1px solid #f0f0f0"}}>전체 레시피</div>}
+                      <div onClick={e=>{e.stopPropagation();pickRecipe(r.id,recipes);}}
+                        style={{padding:"12px 14px",cursor:st.disabled?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:8,
+                          background:st.disabled?"#fdf5f5":form.recipeId===r.id?r.color+"22":"#fff",
+                          borderBottom:"1px solid #f5f5f5",opacity:st.disabled?0.65:1}}>
+                        <span style={{width:12,height:12,borderRadius:"50%",background:st.disabled?"#ccc":r.color,flexShrink:0}} />
+                        <span style={{flex:1}}>
+                          <span style={{fontWeight:form.recipeId===r.id?700:400,fontSize:14,color:st.disabled?"#aaa":"#333"}}>{st.disabled&&"🚫 "}{r.name}{r.favorite?" ⭐":""}</span>
+                          {st.disabled && <span style={{display:"block",fontSize:10,color:"#e55",marginTop:1}}>재고 없음: {st.outOfStock.join(", ")}</span>}
+                        </span>
+                        {!st.disabled && <span style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
                           <span style={{fontSize:14,color:"#7a9",fontWeight:700}}>🧊{totalC}개</span>
                           {vol>0&&<span style={{fontSize:13,color:"#aaa",fontWeight:600}}>💧{vol}g</span>}
-                        </span>
-                      );
-                    })()}
+                        </span>}
+                      </div>
+                    </React.Fragment>);
+                  })}
+                </>);
+              })()}
                   </div>
                 );
               });
