@@ -376,6 +376,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   };
 
   const sorted = [...recipes].sort((a,b) => {
+    if (sortBy==="fav") { if(b.favorite&&!a.favorite) return 1; if(a.favorite&&!b.favorite) return -1; return a.name.localeCompare(b.name,"ko"); }
     if (sortBy==="vol_desc") return cubeVolume(b,cubes)-cubeVolume(a,cubes);
     if (sortBy==="vol_asc")  return cubeVolume(a,cubes)-cubeVolume(b,cubes);
     if (sortBy==="name_asc") return a.name.localeCompare(b.name,"ko");
@@ -402,7 +403,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
         <PillBtn onClick={openNew} small>+ 레시피 추가</PillBtn>
       </div>
       <SortBar value={sortBy} onChange={setSortBy}
-        options={[["default","기본순"],["vol_desc","용량 많은순"],["vol_asc","용량 적은순"],["name_asc","가나다순"],["name_desc","가나다 역순"]]} />
+        options={[["default","기본순"],["fav","⭐즐겨찾기"],["vol_desc","용량 많은순"],["vol_asc","용량 적은순"],["name_asc","가나다순"],["name_desc","가나다 역순"]]} />
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         {sorted.map(r => {
           const st = recipeStatus[r.id] || {disabled:false,outOfStock:[]};
@@ -441,6 +442,10 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
                   {r.updatedAt && <div style={{fontSize:10,color:"#bbb",marginTop:4}}>✏️ 수정: {r.updatedAt}</div>}
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:5,marginLeft:8,flexShrink:0}}>
+                  <button onClick={()=>setRecipes(rs=>rs.map(x=>x.id===r.id?{...x,favorite:!x.favorite}:x))}
+                    style={{background:r.favorite?"#fff8e1":"#f5f5f5",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:14}}>
+                    {r.favorite?"⭐":"☆"}
+                  </button>
                   <button onClick={()=>openEdit(r)} style={{background:"#f5f5f5",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#666"}}>수정</button>
                   <button onClick={()=>openCopy(r)} style={{background:"#e8f8f0",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#4a9"}}>복사</button>
                   <button onClick={()=>setRecipes(rs=>rs.filter(x=>x.id!==r.id))} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
@@ -804,7 +809,14 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                   placeholder="레시피 검색..." onClick={e=>e.stopPropagation()}
                   style={{width:"100%",padding:"6px 10px",border:"1.5px solid #e0e0e0",borderRadius:8,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
               </div>
-              {[...recipes].sort((a,b)=>a.name.localeCompare(b.name,"ko")).filter(r=>r.name.includes(rdropSearch)).map(r => {
+              {(()=>{
+                const filtered = [...recipes].filter(r=>r.name.includes(rdropSearch));
+                const favs = filtered.filter(r=>r.favorite).sort((a,b)=>a.name.localeCompare(b.name,"ko"));
+                const others = filtered.filter(r=>!r.favorite).sort((a,b)=>a.name.localeCompare(b.name,"ko"));
+                const ordered = rdropSearch ? filtered.sort((a,b)=>a.name.localeCompare(b.name,"ko")) : [...favs.length>0?[{_divider:"fav"}]:[],[...favs],...others.length>0&&favs.length>0?[{_divider:"all"}]:[],...others];
+                return ordered.map(r => {
+                  if(r._divider==="fav") return <div key="div-fav" style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#f9a825",background:"#fffde7",borderBottom:"1px solid #fff9c4"}}>⭐ 즐겨찾기</div>;
+                  if(r._divider==="all") return <div key="div-all" style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#999",background:"#fafafa",borderBottom:"1px solid #f0f0f0"}}>전체 레시피</div>;
                 const st = recipeStatus[r.id] || {disabled:false,outOfStock:[]};
                 return(
                   <div key={r.id}
@@ -829,7 +841,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                     })()}
                   </div>
                 );
-              })}
+              });
+              })()}
             </div>
           )}
         </div>
