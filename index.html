@@ -202,7 +202,7 @@ const INIT_CUBES = [
 function cubeVolume(recipe, cubes) {
   return recipe.ingredients.reduce((sum, ing) => {
     const c = cubes.find(x => x.ingredient === ing.name);
-    return sum + ing.cubeCount * (c ? c.weightG : 0);
+    return sum + (Number(ing.cubeCount)||0) * (c ? Number(c.weightG)||0 : 0);
   }, 0);
 }
 
@@ -210,14 +210,21 @@ function calcStock(cubes, schedules, recipes) {
   const used = {};
   schedules.forEach(s => {
     const rec = recipes.find(r => r.id === s.recipeId);
-    if (rec) rec.ingredients.forEach(ing => { used[ing.name] = (used[ing.name]||0) + ing.cubeCount; });
+    if (rec) rec.ingredients.forEach(ing => { used[ing.name] = (used[ing.name]||0) + (Number(ing.cubeCount)||0); });
   });
   const stock = {};
   cubes.forEach(c => { stock[c.ingredient] = Math.max(0, c.count - (used[c.ingredient]||0)); });
   const scheduledRecipeIds = new Set(schedules.map(s=>s.recipeId).filter(Boolean));
   const status = {};
   recipes.forEach(r => {
-    const oos = r.ingredients.filter(ing => cubes.find(c=>c.ingredient===ing.name) && stock[ing.name]===0);
+    // 큐브에 등록된 재료 중 재고가 필요량보다 부족한 것
+    const oos = r.ingredients.filter(ing => {
+      const cube = cubes.find(c => c.ingredient === ing.name);
+      if (!cube) return false; // 큐브 등록 안된 재료는 무시
+      const needed = Number(ing.cubeCount) || 0;
+      const avail = stock[ing.name] ?? 0;
+      return avail < needed;
+    });
     // 이미 스케쥴에 등록된 레시피는 재료가 소진돼도 비활성화하지 않음
     const isScheduled = scheduledRecipeIds.has(r.id);
     status[r.id] = { disabled: !isScheduled && oos.length > 0, outOfStock: oos.map(i=>i.name) };
@@ -342,7 +349,7 @@ function IngSearch({ value, onChange, cubes }) {
 // ────────────────────────────
 // 레시피 탭
 // ────────────────────────────
-function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes }) {
+function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) {
   const [modal, setModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const emptyForm = { name:"", color:"#FFB347", note:"", ingredients:[{name:"",cubeCount:1}], dishId:"", slotMap:{} };
@@ -358,7 +365,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes }) {
   const setIng = (i,k,v) => setForm(f => { const a=[...f.ingredients]; a[i]={...a[i],[k]:k==="cubeCount"?Number(v):v}; return {...f,ingredients:a}; });
 
   const save = () => {
-    const ings = form.ingredients.filter(x=>x.name.trim());
+    const ings = form.ingredients.filter(x=>x.name.trim()).map(x=>({...x,cubeCount:Number(x.cubeCount)||1}));
     if (!form.name || !ings.length) return;
     if (editId) {
       setRecipes(rs => rs.map(r => r.id===editId ? {...r,name:form.name,color:form.color,note:form.note,ingredients:ings,dishId:form.dishId,slotMap:form.slotMap,updatedAt:todayStr()} : r));
@@ -400,7 +407,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes }) {
         {sorted.map(r => {
           const st = recipeStatus[r.id] || {disabled:false,outOfStock:[]};
           const vol = cubeVolume(r, cubes);
-          const totalC = r.ingredients.reduce((s,x)=>s+x.cubeCount,0);
+          const totalC = r.ingredients.reduce((s,x)=>s+(Number(x.cubeCount)||0),0);
           return(
             <div key={r.id} style={{background:st.disabled?"#fdf5f5":"#fff",borderRadius:16,padding:16,borderLeft:"4px solid "+(st.disabled?"#ffb3b3":r.color),boxShadow:"0 2px 12px rgba(0,0,0,0.04)",position:"relative",overflow:"hidden"}}>
               {st.disabled && <div style={{position:"absolute",top:0,right:0,background:"#e55",color:"#fff",fontSize:10,fontWeight:700,padding:"3px 12px",borderBottomLeftRadius:10}}>재료 없음</div>}
@@ -414,19 +421,23 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes }) {
                   <div style={{marginBottom:4}}>
                     {r.ingredients.map(ing => {
                       const oos = st.outOfStock.includes(ing.name);
+                      const cube = cubes.find(c=>c.ingredient===ing.name);
+                      const avail = cube ? (stock[ing.name]??0) : null;
+                      const needed = Number(ing.cubeCount)||0;
+                      const shortage = oos && avail!==null ? needed - avail : 0;
                       return(
                         <span key={ing.name} style={{display:"inline-flex",alignItems:"center",gap:3,background:oos?"#fff0f0":(st.disabled?"#f5f5f5":r.color+"18"),border:"1px solid "+(oos?"#ffb3b3":(st.disabled?"#e0e0e0":r.color+"55")),borderRadius:20,padding:"2px 8px",marginRight:5,marginBottom:4,fontSize:11}}>
                           {oos && <span style={{fontSize:10}}>⚠️</span>}
                           <span style={{color:oos?"#e55":"#555"}}>{ing.name}</span>
                           <span style={{fontWeight:700,color:oos?"#e55":(st.disabled?"#bbb":r.color)}}>x{ing.cubeCount}</span>
-                          {oos && <span style={{fontSize:9,color:"#e55",fontWeight:700}}>소진</span>}
+                          {oos && <span style={{fontSize:9,color:"#e55",fontWeight:700}}>{shortage>0?shortage+"개 부족":"소진"}</span>}
                         </span>
                       );
                     })}
                   </div>
                   {st.disabled && <div style={{marginTop:6,background:"#fff0f0",borderRadius:8,padding:"5px 10px",fontSize:11,color:"#e55",fontWeight:600}}>🚫 재고 없음: <strong>{st.outOfStock.join(", ")}</strong></div>}
                   {r.note && <div style={{fontSize:12,color:"#999",marginTop:4}}>{r.note}</div>}
-                  {r.dishId && (()=>{const d=(dishes||[]).find(x=>x.id===r.dishId);return d?<div style={{fontSize:11,color:"#7a9",marginTop:4,display:"flex",alignItems:"center",gap:4}}><span>{d.icon}</span><span>{d.name}</span>{r.slotMap&&Object.keys(r.slotMap).length>0&&<span style={{color:"#bbb"}}>({Object.entries(r.slotMap).filter(([,v])=>v.length>0).map(([k,v])=>k+": "+v.join("·")).join(" / ")})</span>}</div>:null;})()}
+                  {r.dishId && (()=>{const d=(dishes||[]).find(x=>x.id===r.dishId);return d?<div style={{fontSize:11,color:"#7a9",marginTop:4,display:"flex",alignItems:"center",gap:4}}><span>{d.icon}</span><span>{d.name}</span></div>:null;})()}
                   {r.updatedAt && <div style={{fontSize:10,color:"#bbb",marginTop:4}}>✏️ 수정: {r.updatedAt}</div>}
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:5,marginLeft:8,flexShrink:0}}>
@@ -485,7 +496,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes }) {
           {form.dishId && (()=>{
             const dish = (dishes||[]).find(d=>d.id===form.dishId);
             if (!dish) return null;
-            const ings = form.ingredients.filter(x=>x.name.trim());
+            const ings = form.ingredients.filter(x=>x.name.trim()).map(x=>({...x,cubeCount:Number(x.cubeCount)||1}));
             if (ings.length===0) return <div style={{fontSize:11,color:"#bbb"}}>재료를 먼저 추가하세요</div>;
             return(
               <div style={{background:"#f9f9f9",borderRadius:14,padding:12}}>
@@ -1445,7 +1456,7 @@ function App({ user }) {
   if (!ready) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",color:"#aaa",fontSize:16}}>로딩 중...</div>;
 
   const TABS = [
-    { label:"🍳 레시피", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} /> },
+    { label:"🍳 레시피", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock} /> },
     { label:"📅 스케줄", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} /> },
     { label:"🧊 큐브",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} makingIds={makingIds} setMakingIds={setMakingIds} /> },
     { label:"🍽️ 식기",  el:<DishTab dishes={dishes} setDishes={setDishes} /> },
