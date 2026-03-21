@@ -214,7 +214,6 @@ function calcStock(cubes, schedules, recipes) {
   });
   const stock = {};
   cubes.forEach(c => { stock[c.ingredient] = Math.max(0, c.count - (used[c.ingredient]||0)); });
-  const scheduledRecipeIds = new Set(schedules.map(s=>s.recipeId).filter(Boolean));
   const status = {};
   recipes.forEach(r => {
     // 큐브에 등록된 재료 중 재고가 필요량보다 부족한 것
@@ -225,9 +224,8 @@ function calcStock(cubes, schedules, recipes) {
       const avail = stock[ing.name] ?? 0;
       return avail < needed;
     });
-    // 이미 스케쥴에 등록된 레시피는 재료가 소진돼도 비활성화하지 않음
-    const isScheduled = scheduledRecipeIds.has(r.id);
-    status[r.id] = { disabled: !isScheduled && oos.length > 0, outOfStock: oos.map(i=>i.name) };
+    // 재료 부족이면 무조건 비활성화 (스케쥴 등록 여부 무관)
+    status[r.id] = { disabled: oos.length > 0, outOfStock: oos.map(i=>i.name) };
   });
   return { stock, status };
 }
