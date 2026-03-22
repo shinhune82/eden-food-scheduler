@@ -160,6 +160,36 @@ function ingredientsToTokens(ingredients) {
     })
   );
 }
+// slotMap을 새 재료 목록 기준으로 tokenKey 재생성
+function rebuildSlotMap(slotMap, ingredients) {
+  let gi = 0;
+  const newTokens = {};
+  for (const ing of ingredients) {
+    const name = ing.name.trim();
+    if (!name) continue;
+    const count = Number(ing.cubeCount) || 1;
+    newTokens[name] = [];
+    for (let i = 0; i < count; i++) {
+      newTokens[name].push(name + "__g" + gi++);
+    }
+  }
+  const ingUsed = {};
+  const result = {};
+  for (const [slot, tokenKeys] of Object.entries(slotMap||{})) {
+    result[slot] = [];
+    for (const tk of tokenKeys) {
+      const ingName = tk.split("__g")[0];
+      if (!ingUsed[ingName]) ingUsed[ingName] = 0;
+      const idx = ingUsed[ingName];
+      if (newTokens[ingName] && idx < newTokens[ingName].length) {
+        result[slot].push(newTokens[ingName][idx]);
+        ingUsed[ingName]++;
+      }
+    }
+  }
+  return result;
+}
+
 // 토큰 표시 레이블: 같은 이름이 여러 개면 (1/n) 표기
 function tokenLabel(tokenKey, allTokens) {
   const ingName = tokenKey.split("__g")[0];
@@ -356,7 +386,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
 
   const openNew = () => { setEditId(null); setForm(emptyForm); setModal(true); };
   const openEdit = r => { setEditId(r.id); setForm({name:r.name,color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x})),dishId:r.dishId||"",slotMap:r.slotMap||{}}); setModal(true); };
-  const openCopy = r => { setEditId(null); setForm({name:r.name+" (복사)",color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x})),dishId:r.dishId||"",slotMap:r.slotMap||{}}); setModal(true); };
+  const openCopy = r => { setEditId(null); const newIngs=r.ingredients.map(x=>({...x})); setForm({name:r.name+" (복사)",color:r.color,note:r.note||"",ingredients:newIngs,dishId:r.dishId||"",slotMap:rebuildSlotMap(r.slotMap,newIngs)}); setModal(true); };
 
   const addIng = () => setForm(f => ({...f, ingredients:[...f.ingredients, {name:"",cubeCount:1}]}));
   const delIng = i => setForm(f => ({...f, ingredients:f.ingredients.filter((_,idx)=>idx!==i)}));
