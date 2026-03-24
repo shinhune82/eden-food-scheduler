@@ -622,7 +622,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
     const nowDisabled = rId && (recipeStatus[rId]||{}).disabled;
     setTarget({date,meal});
     const defRec = rId && !nowDisabled ? recipes.find(r=>r.id===rId) : null;
-    const defSlots = ex && ex.slots && Object.keys(ex.slots).length>0 ? ex.slots : (defRec&&defRec.slotMap ? defRec.slotMap : {});
+    const rawSlots = ex && ex.slots && Object.keys(ex.slots).length>0 ? ex.slots : (defRec&&defRec.slotMap ? defRec.slotMap : {});
+    const defSlots = defRec ? rebuildSlotMap(rawSlots, defRec.ingredients) : rawSlots;
     const defDish  = ex ? (ex.dishId||"") : (defRec&&defRec.dishId ? defRec.dishId : "");
     setForm(ex
       ? {recipeId:nowDisabled?"":rId,dishId:defDish,amount:ex.amount||"",memo:ex.memo||"",checked:ex.checked||[],slots:defSlots}
@@ -635,7 +636,9 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   const pickRecipe = (id, recipeList) => {
     if ((recipeStatus[id]||{}).disabled) return;
     const rec = (recipeList||recipes).find(r=>r.id===id);
-    setForm(f=>({...f,recipeId:id,checked:[],slots:rec&&rec.slotMap?{...rec.slotMap}:{},dishId:rec&&rec.dishId?rec.dishId:""}));
+    // slotMap을 항상 현재 재료 기준으로 재생성해서 인덱스 불일치 방지
+    const cleanSlots = rec && rec.slotMap ? rebuildSlotMap(rec.slotMap, rec.ingredients) : {};
+    setForm(f=>({...f,recipeId:id,checked:[],slots:cleanSlots,dishId:rec&&rec.dishId?rec.dishId:""}));
     setRdrop(false);
   };
   const pickDish = id => {
@@ -742,7 +745,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         const rec = ent ? recipes.find(r=>r.id===ent.recipeId) : null;
         const dis = rec && (recipeStatus[rec.id]||{}).disabled;
         const dish = ent ? dishes.find(d=>d.id===ent.dishId) : null;
-        const slots = ent && ent.slots ? ent.slots : {};
+        const rawSlots = ent && ent.slots && Object.values(ent.slots).flat().length>0 ? ent.slots : (rec && rec.slotMap ? rec.slotMap : {});
+        const slots = rec ? rebuildSlotMap(rawSlots, rec.ingredients) : rawSlots;
         const hasSlots = dish && dish.slots && dish.slots.length>0;
         const allIngNames = rec ? rec.ingredients.map(i=>i.name) : [];
         const checked = ent && ent.checked ? ent.checked : [];
