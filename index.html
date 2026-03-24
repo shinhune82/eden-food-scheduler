@@ -389,16 +389,26 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   const openCopy = r => { setEditId(null); const newIngs=r.ingredients.map(x=>({...x})); setForm({name:r.name+" (복사)",color:r.color,note:r.note||"",ingredients:newIngs,dishId:r.dishId||"",slotMap:rebuildSlotMap(r.slotMap,newIngs)}); setModal(true); };
 
   const addIng = () => setForm(f => ({...f, ingredients:[...f.ingredients, {name:"",cubeCount:1}]}));
-  const delIng = i => setForm(f => ({...f, ingredients:f.ingredients.filter((_,idx)=>idx!==i)}));
+  const delIng = i => setForm(f => {
+    const removed = f.ingredients[i];
+    const newIngs = f.ingredients.filter((_,idx)=>idx!==i);
+    // 삭제된 재료의 tokenKey를 slotMap에서도 제거하고 나머지는 재생성
+    const newSlotMap = rebuildSlotMap(
+      Object.fromEntries(Object.entries(f.slotMap||{}).map(([slot,tks])=>[slot, tks.filter(tk=>tk.split("__g")[0]!==removed.name)])),
+      newIngs
+    );
+    return {...f, ingredients:newIngs, slotMap:newSlotMap};
+  });
   const setIng = (i,k,v) => setForm(f => { const a=[...f.ingredients]; a[i]={...a[i],[k]:k==="cubeCount"?Number(v):v}; return {...f,ingredients:a}; });
 
   const save = () => {
     const ings = form.ingredients.filter(x=>x.name.trim()).map(x=>({...x,cubeCount:Number(x.cubeCount)||1}));
     if (!form.name || !ings.length) return;
+    const cleanSlotMap = rebuildSlotMap(form.slotMap, ings);
     if (editId) {
-      setRecipes(rs => rs.map(r => r.id===editId ? {...r,name:form.name,color:form.color,note:form.note,ingredients:ings,dishId:form.dishId,slotMap:form.slotMap,updatedAt:todayStr()} : r));
+      setRecipes(rs => rs.map(r => r.id===editId ? {...r,name:form.name,color:form.color,note:form.note,ingredients:ings,dishId:form.dishId,slotMap:cleanSlotMap,updatedAt:todayStr()} : r));
     } else {
-      setRecipes(rs => [...rs, {id:uid(),name:form.name,color:form.color,note:form.note,ingredients:ings,dishId:form.dishId,slotMap:form.slotMap,updatedAt:todayStr()}]);
+      setRecipes(rs => [...rs, {id:uid(),name:form.name,color:form.color,note:form.note,ingredients:ings,dishId:form.dishId,slotMap:cleanSlotMap,updatedAt:todayStr()}]);
     }
     setModal(false);
   };
