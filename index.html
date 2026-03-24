@@ -638,7 +638,19 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
     setForm(f=>({...f,recipeId:id,checked:[],slots:rec&&rec.slotMap?{...rec.slotMap}:{},dishId:rec&&rec.dishId?rec.dishId:""}));
     setRdrop(false);
   };
-  const pickDish = id => { setForm(f=>({...f,dishId:id,slots:{}})); setDdrop(false); };
+  const pickDish = id => {
+    const newDish = dishes.find(d=>d.id===id);
+    const rec = recipes.find(r=>r.id===form.recipeId);
+    let newSlots = {};
+    if (newDish && rec && rec.slotMap && Object.keys(rec.slotMap).length>0) {
+      // 레시피 slotMap을 새 식기 슬롯 기준으로 재매핑
+      const rebuit = rebuildSlotMap(rec.slotMap, rec.ingredients);
+      // 새 식기에 있는 슬롯만 유지
+      newDish.slots.forEach(slot => { if (rebuit[slot]) newSlots[slot] = rebuit[slot]; });
+    }
+    setForm(f=>({...f,dishId:id,slots:newSlots}));
+    setDdrop(false);
+  };
   const toggleCheck = name => setForm(f=>({...f,checked:f.checked.includes(name)?f.checked.filter(x=>x!==name):[...f.checked,name]}));
   const toggleSlot = (slot, name) => setForm(f=>{
     const cur = (f.slots[slot]||[]);
