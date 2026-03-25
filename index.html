@@ -385,7 +385,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   const [form, setForm] = useState(emptyForm);
   const [sortBy, setSortBy] = useState("default");
 
-  const openNew = () => { setEditId(null); setForm(emptyForm); setModal(true); };
+  const openNew = () => { setEditId(null); setForm(emptyForm); setTagInput(""); setModal(true); };
   const openEdit = r => { setEditId(r.id); setForm({name:r.name,color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x})),dishId:r.dishId||"",slotMap:r.slotMap||{}}); setModal(true); };
   const openCopy = r => { setEditId(null); const newIngs=r.ingredients.map(x=>({...x})); setForm({name:r.name+" (복사)",color:r.color,note:r.note||"",ingredients:newIngs,dishId:r.dishId||"",slotMap:rebuildSlotMap(r.slotMap,newIngs)}); setModal(true); };
 
@@ -1160,6 +1160,8 @@ function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, se
   const [form, setForm] = useState({ingredient:"",count:"",madeDate:todayStr(),weightG:"",categoryId:""});
   const [catForm, setCatForm] = useState({name:"",color:"#C8F0C0"});
   const [search, setSearch] = useState("");
+  const [filterTool, setFilterTool] = useState("");
+  const [tagInput, setTagInput] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [sortBy, setSortBy] = useState("stock_asc");
 
@@ -1433,36 +1435,55 @@ function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, se
 function SnackTab({ snacks, setSnacks }) {
   const [modal, setModal] = useState(false);
   const [editId, setEditId] = useState(null);
-  const emptyForm = { name:"", ingredients:"", steps:"", memo:"", tags:[] };
+  const emptyForm = { name:"", ingredients:"", steps:"", memo:"", tags:[], cookTool:"" };
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
+  const [filterTool, setFilterTool] = useState("");
+  const [tagInput, setTagInput] = useState("");
   const [viewId, setViewId] = useState(null);
 
-  const openNew = () => { setEditId(null); setForm(emptyForm); setModal(true); };
-  const openEdit = s => { setEditId(s.id); setForm({...s}); setModal(true); };
+  const openNew = () => { setEditId(null); setForm(emptyForm); setTagInput(""); setModal(true); };
+  const openEdit = s => { setEditId(s.id); setForm({...s}); setTagInput((s.tags||[]).join(", ")); setModal(true); };
   const openView = s => setViewId(s.id);
 
   const save = () => {
     if (!form.name.trim()) return;
+    const parsedTags = tagInput.split(/[,\s]+/).map(t=>t.trim()).filter(Boolean);
     if (editId) {
-      setSnacks(ss => ss.map(s => s.id===editId ? {...s,...form,updatedAt:todayStr()} : s));
+      setSnacks(ss => ss.map(s => s.id===editId ? {...s,...form,tags:parsedTags,updatedAt:todayStr()} : s));
     } else {
-      setSnacks(ss => [...ss, {id:uid(),...form,updatedAt:todayStr()}]);
+      setSnacks(ss => [...ss, {id:uid(),...form,tags:parsedTags,updatedAt:todayStr()}]);
     }
     setModal(false);
   };
 
 
-  const filtered = snacks.filter(s => s.name.includes(search) || (s.ingredients||"").includes(search) || (s.tags||[]).some(t=>t.includes(search)));
+  const filtered = snacks.filter(s => {
+    const matchSearch = !search || s.name.includes(search) || (s.ingredients||"").includes(search) || (s.tags||[]).some(t=>t.includes(search));
+    const matchTool = !filterTool || s.cookTool===filterTool;
+    return matchSearch && matchTool;
+  });
   const viewItem = viewId ? snacks.find(s=>s.id===viewId) : null;
 
   return(
     <div>
       {/* 검색 + 추가 */}
-      <div style={{display:"flex",gap:8,marginBottom:14}}>
+      <div style={{display:"flex",gap:8,marginBottom:10}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 검색..."
           style={{flex:1,padding:"8px 12px",border:"1.5px solid #e8e8e8",borderRadius:12,fontSize:13,outline:"none"}}/>
         <PillBtn onClick={openNew}>+ 추가</PillBtn>
+      </div>
+      {/* 조리기구 필터 */}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+        {["전체",...new Set(snacks.map(s=>s.cookTool).filter(Boolean))].map(t=>(
+          <button key={t} onClick={()=>setFilterTool(t==="전체"?"":t)}
+            style={{padding:"4px 12px",borderRadius:20,border:"1.5px solid "+((filterTool===t||(t==="전체"&&!filterTool))?"#7BC67E":"#e0e0e0"),
+              background:(filterTool===t||(t==="전체"&&!filterTool))?"#e8f8f0":"#fff",
+              color:(filterTool===t||(t==="전체"&&!filterTool))?"#4a9":"#888",
+              fontSize:12,cursor:"pointer",fontWeight:(filterTool===t||(t==="전체"&&!filterTool))?700:400}}>
+            {t==="전체"?"전체 보기":t}
+          </button>
+        ))}
       </div>
 
       {filtered.length===0 && (
@@ -1487,6 +1508,7 @@ function SnackTab({ snacks, setSnacks }) {
                     ))}
                   </div>
                 )}
+                {s.cookTool && <span style={{background:"#e8f8f0",borderRadius:20,padding:"1px 8px",fontSize:11,color:"#4a9",marginBottom:4,display:"inline-block"}}>🍳 {s.cookTool}</span>}
                 {s.ingredients && <div style={{fontSize:12,color:"#888",marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>🧂 {s.ingredients}</div>}
                 {s.memo && <div style={{fontSize:11,color:"#aaa",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📝 {s.memo}</div>}
                 {s.updatedAt && <div style={{fontSize:10,color:"#ccc",marginTop:4}}>✏️ {s.updatedAt}</div>}
@@ -1504,6 +1526,7 @@ function SnackTab({ snacks, setSnacks }) {
       {viewItem && (
         <Overlay open={!!viewItem} onClose={()=>setViewId(null)} title={viewItem.name}>
 
+          {viewItem.cookTool && <div style={{marginBottom:10}}><span style={{background:"#e8f8f0",borderRadius:20,padding:"4px 12px",fontSize:13,color:"#4a9",fontWeight:600}}>🍳 {viewItem.cookTool}</span></div>}
           {viewItem.tags && viewItem.tags.length>0 && (
             <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:12}}>
               {viewItem.tags.map((t,i)=>(
@@ -1538,12 +1561,33 @@ function SnackTab({ snacks, setSnacks }) {
 
         <Field label="이름" value={form.name} onChange={v=>setForm(f=>({...f,name:v}))} placeholder="고구마 퓨레" />
 
+        {/* 조리기구 */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:12,color:"#888",marginBottom:6}}>🍳 주 조리기구</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {["냄비","프라이팬","오븐","에어프라이어","찜기","전자레인지","믹서기","없음"].map(t=>(
+              <button key={t} onClick={()=>setForm(f=>({...f,cookTool:f.cookTool===t?"":t}))}
+                style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(form.cookTool===t?"#7BC67E":"#e0e0e0"),
+                  background:form.cookTool===t?"#e8f8f0":"#fff",color:form.cookTool===t?"#4a9":"#666",
+                  fontSize:12,cursor:"pointer",fontWeight:form.cookTool===t?700:400}}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
         {/* 태그 */}
         <div style={{marginBottom:12}}>
-          <div style={{fontSize:12,color:"#888",marginBottom:6}}>태그 (쉼표로 구분)</div>
-          <input value={(form.tags||[]).join(",")} onChange={e=>setForm(f=>({...f,tags:e.target.value.split(",").map(t=>t.trim()).filter(Boolean)}))}
+          <div style={{fontSize:12,color:"#888",marginBottom:6}}>태그 <span style={{fontSize:11,color:"#bbb"}}>(쉼표 또는 스페이스로 구분)</span></div>
+          <input value={tagInput} onChange={e=>setTagInput(e.target.value)}
             placeholder="핑거푸드, 간편식, 이유식"
             style={{width:"100%",padding:"8px 12px",border:"1.5px solid #e8e8e8",borderRadius:10,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          {tagInput && (
+            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:6}}>
+              {tagInput.split(/[,\s]+/).filter(Boolean).map((t,i)=>(
+                <span key={i} style={{background:"#fef3e2",borderRadius:20,padding:"2px 8px",fontSize:11,color:"#e08a00"}}>#{t}</span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 재료 */}
