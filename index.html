@@ -384,6 +384,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   const emptyForm = { name:"", color:"#FFB347", note:"", ingredients:[{name:"",cubeCount:1}], dishId:"", slotMap:{} };
   const [form, setForm] = useState(emptyForm);
   const [sortBy, setSortBy] = useState("default");
+  const [hideDisabled, setHideDisabled] = useState(false);
 
   const openNew = () => { setEditId(null); setForm(emptyForm); setTagInput(""); setModal(true); };
   const openEdit = r => { setEditId(r.id); setForm({name:r.name,color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x})),dishId:r.dishId||"",slotMap:r.slotMap||{}}); setModal(true); };
@@ -421,7 +422,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
     if (sortBy==="name_asc") return a.name.localeCompare(b.name,"ko");
     if (sortBy==="name_desc") return b.name.localeCompare(a.name,"ko");
     return 0;
-  });
+  }).filter(r => !hideDisabled || !(recipeStatus[r.id]||{}).disabled);
 
   const disabledCount = recipes.filter(r => (recipeStatus[r.id]||{}).disabled).length;
 
@@ -443,6 +444,16 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
       </div>
       <SortBar value={sortBy} onChange={setSortBy}
         options={[["default","기본순"],["fav","⭐즐겨찾기"],["vol_desc","용량 많은순"],["vol_asc","용량 적은순"],["name_asc","가나다순"],["name_desc","가나다 역순"]]} />
+      {disabledCount>0 && (
+        <div style={{marginBottom:8}}>
+          <button onClick={()=>setHideDisabled(v=>!v)}
+            style={{padding:"5px 14px",borderRadius:20,border:"1.5px solid "+(hideDisabled?"#7BC67E":"#e0e0e0"),
+              background:hideDisabled?"#e8f8f0":"#fff",color:hideDisabled?"#4a9":"#888",
+              fontSize:12,cursor:"pointer",fontWeight:hideDisabled?700:400}}>
+            {hideDisabled?`✅ 재료없음 숨기는 중 (${disabledCount}개)`:`🚫 재료없음 ${disabledCount}개 숨기기`}
+          </button>
+        </div>
+      )}
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         {sorted.map(r => {
           const st = recipeStatus[r.id] || {disabled:false,outOfStock:[]};
@@ -1161,6 +1172,7 @@ function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, se
   const [catForm, setCatForm] = useState({name:"",color:"#C8F0C0"});
   const [search, setSearch] = useState("");
   const [filterTool, setFilterTool] = useState("");
+  const [filterFav, setFilterFav] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [sortBy, setSortBy] = useState("stock_asc");
@@ -1439,6 +1451,7 @@ function SnackTab({ snacks, setSnacks }) {
   const [form, setForm] = useState(emptyForm);
   const [search, setSearch] = useState("");
   const [filterTool, setFilterTool] = useState("");
+  const [filterFav, setFilterFav] = useState(false);
   const [tagInput, setTagInput] = useState("");
   const [viewId, setViewId] = useState(null);
 
@@ -1461,7 +1474,8 @@ function SnackTab({ snacks, setSnacks }) {
   const filtered = snacks.filter(s => {
     const matchSearch = !search || s.name.includes(search) || (s.ingredients||"").includes(search) || (s.tags||[]).some(t=>t.includes(search));
     const matchTool = !filterTool || s.cookTool===filterTool;
-    return matchSearch && matchTool;
+    const matchFav = !filterFav || s.favorite;
+    return matchSearch && matchTool && matchFav;
   });
   const viewItem = viewId ? snacks.find(s=>s.id===viewId) : null;
 
@@ -1473,15 +1487,22 @@ function SnackTab({ snacks, setSnacks }) {
           style={{flex:1,padding:"8px 12px",border:"1.5px solid #e8e8e8",borderRadius:12,fontSize:13,outline:"none"}}/>
         <PillBtn onClick={openNew}>+ 추가</PillBtn>
       </div>
-      {/* 조리기구 필터 */}
+      {/* 필터 */}
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
-        {["전체",...new Set(snacks.map(s=>s.cookTool).filter(Boolean))].map(t=>(
-          <button key={t} onClick={()=>setFilterTool(t==="전체"?"":t)}
-            style={{padding:"4px 12px",borderRadius:20,border:"1.5px solid "+((filterTool===t||(t==="전체"&&!filterTool))?"#7BC67E":"#e0e0e0"),
-              background:(filterTool===t||(t==="전체"&&!filterTool))?"#e8f8f0":"#fff",
-              color:(filterTool===t||(t==="전체"&&!filterTool))?"#4a9":"#888",
-              fontSize:12,cursor:"pointer",fontWeight:(filterTool===t||(t==="전체"&&!filterTool))?700:400}}>
-            {t==="전체"?"전체 보기":t}
+        <button onClick={()=>{setFilterTool(""); setFilterFav(false);}}
+          style={{padding:"4px 12px",borderRadius:20,border:"1.5px solid "+(!filterTool&&!filterFav?"#7BC67E":"#e0e0e0"),
+            background:!filterTool&&!filterFav?"#e8f8f0":"#fff",color:!filterTool&&!filterFav?"#4a9":"#888",
+            fontSize:12,cursor:"pointer",fontWeight:!filterTool&&!filterFav?700:400}}>전체</button>
+        <button onClick={()=>{setFilterFav(v=>!v); setFilterTool("");}}
+          style={{padding:"4px 12px",borderRadius:20,border:"1.5px solid "+(filterFav?"#f9a825":"#e0e0e0"),
+            background:filterFav?"#fffde7":"#fff",color:filterFav?"#f9a825":"#888",
+            fontSize:12,cursor:"pointer",fontWeight:filterFav?700:400}}>⭐ 즐겨찾기</button>
+        {[...new Set(snacks.map(s=>s.cookTool).filter(Boolean))].map(t=>(
+          <button key={t} onClick={()=>{setFilterTool(filterTool===t?"":t); setFilterFav(false);}}
+            style={{padding:"4px 12px",borderRadius:20,border:"1.5px solid "+(filterTool===t?"#7BC67E":"#e0e0e0"),
+              background:filterTool===t?"#e8f8f0":"#fff",color:filterTool===t?"#4a9":"#888",
+              fontSize:12,cursor:"pointer",fontWeight:filterTool===t?700:400}}>
+            {t}
           </button>
         ))}
       </div>
@@ -1496,12 +1517,12 @@ function SnackTab({ snacks, setSnacks }) {
       {/* 카드 목록 */}
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         {filtered.map(s => (
-          <div key={s.id} style={{background:"#fff",borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",overflow:"hidden",border:"1.5px solid #f0f0f0"}}>
-            <div style={{display:"flex",alignItems:"flex-start",padding:14,gap:12}}>
-              <div onClick={()=>openView(s)} style={{cursor:"pointer",display:"flex",gap:12,flex:1,alignItems:"flex-start"}}>
-              <div style={{width:54,height:54,borderRadius:12,background:"#fef3e2",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>🍪</div>
+          <div key={s.id} style={{background:"#fff",borderRadius:16,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",overflow:"hidden",border:"1.5px solid "+(s.favorite?"#ffe082":"#f0f0f0")}}>
+            {/* 카드 본문 - 탭하면 상세보기 */}
+            <div onClick={()=>openView(s)} style={{cursor:"pointer",display:"flex",gap:12,padding:14,alignItems:"flex-start"}}>
+              <div style={{width:54,height:54,borderRadius:12,background:s.favorite?"#fff8e1":"#fef3e2",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>🍪</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700,fontSize:15,color:"#333",marginBottom:4}}>{s.name}</div>
+                <div style={{fontWeight:700,fontSize:15,color:"#333",marginBottom:4}}>{s.name}{s.favorite&&<span style={{marginLeft:4}}>⭐</span>}</div>
                 {s.tags && s.tags.length>0 && (
                   <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:4}}>
                     {s.tags.map((t,i)=>(
@@ -1514,13 +1535,17 @@ function SnackTab({ snacks, setSnacks }) {
                 {s.memo && <div style={{fontSize:11,color:"#aaa",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📝 {s.memo}</div>}
                 {s.updatedAt && <div style={{fontSize:10,color:"#ccc",marginTop:4}}>✏️ {s.updatedAt}</div>}
               </div>
-              </div>
-              <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0,justifyContent:"center"}}>
+            </div>
+            {/* 하단 버튼 */}
+            <div style={{display:"flex",borderTop:"1px solid #f5f5f5"}}>
+              <button onClick={e=>{e.stopPropagation();setSnacks(ss=>ss.map(x=>x.id===s.id?{...x,favorite:!x.favorite}:x));}}
+                style={{flex:1,padding:"8px",background:s.favorite?"#fff8e1":"#fafafa",border:"none",borderRight:"1px solid #f0f0f0",cursor:"pointer",fontSize:14}}>
+                {s.favorite?"⭐":"☆"}
+              </button>
               <button onClick={e=>{e.stopPropagation();openEdit(s);}}
-                style={{padding:"5px 10px",background:"#f5f5f5",border:"none",borderRadius:8,cursor:"pointer",fontSize:12,color:"#666"}}>수정</button>
+                style={{flex:2,padding:"8px",background:"#fafafa",border:"none",borderRight:"1px solid #f0f0f0",cursor:"pointer",fontSize:12,color:"#666"}}>수정</button>
               <button onClick={e=>{e.stopPropagation();setSnacks(ss=>ss.filter(x=>x.id!==s.id));}}
-                style={{padding:"5px 10px",background:"#fff0f0",border:"none",borderRadius:8,cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
-              </div>
+                style={{flex:2,padding:"8px",background:"#fff5f5",border:"none",cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
             </div>
           </div>
         ))}
