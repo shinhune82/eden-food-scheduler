@@ -1514,11 +1514,14 @@ function SnackTab({ snacks, setSnacks }) {
                 {s.updatedAt && <div style={{fontSize:10,color:"#ccc",marginTop:4}}>✏️ {s.updatedAt}</div>}
               </div>
             </div>
-            <div style={{display:"flex",borderTop:"1px solid #f5f5f5"}}>
-              <button onClick={()=>openEdit(s)} style={{flex:1,padding:"8px",background:"#f9f9f9",border:"none",cursor:"pointer",fontSize:12,color:"#666",borderRight:"1px solid #f0f0f0"}}>수정</button>
-              <button onClick={()=>setSnacks(ss=>ss.filter(x=>x.id!==s.id))} style={{flex:1,padding:"8px",background:"#fff5f5",border:"none",cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
+            <div style={{display:"flex",flexDirection:"column",gap:4,marginLeft:8,flexShrink:0}}>
+              <button onClick={e=>{e.stopPropagation();openEdit(s);}}
+                style={{padding:"5px 10px",background:"#f5f5f5",border:"none",borderRadius:8,cursor:"pointer",fontSize:12,color:"#666"}}>수정</button>
+              <button onClick={e=>{e.stopPropagation();setSnacks(ss=>ss.filter(x=>x.id!==s.id));}}
+                style={{padding:"5px 10px",background:"#fff0f0",border:"none",borderRadius:8,cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
             </div>
           </div>
+        </div>
         ))}
       </div>
 
