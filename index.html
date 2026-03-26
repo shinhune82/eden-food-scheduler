@@ -385,7 +385,6 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   const [form, setForm] = useState(emptyForm);
   const [sortBy, setSortBy] = useState("default");
   const [hideDisabled, setHideDisabled] = useState(false);
-  const [bannerOpen, setBannerOpen] = useState(false);
 
   const openNew = () => { setEditId(null); setForm(emptyForm); setModal(true); };
   const openEdit = r => { setEditId(r.id); setForm({name:r.name,color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x})),dishId:r.dishId||"",slotMap:r.slotMap||{}}); setModal(true); };
@@ -430,19 +429,13 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   return(
     <div>
       {disabledCount > 0 && (
-        <div style={{background:"#fff0f0",border:"1.5px solid #ffb3b3",borderRadius:12,marginBottom:14,overflow:"hidden"}}>
-          <div onClick={()=>setBannerOpen(v=>!v)}
-            style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",cursor:"pointer"}}>
-            <span style={{fontWeight:700,fontSize:13,color:"#c00"}}>🚫 재료 소진 {disabledCount}개</span>
-            <span style={{fontSize:11,color:"#e55"}}>{bannerOpen?"▲ 닫기":"▼ 목록 보기"}</span>
+        <div style={{background:"#fff0f0",border:"1.5px solid #ffb3b3",borderRadius:12,padding:"10px 14px",marginBottom:14}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#c00",marginBottom:4}}>🚫 재료 소진으로 사용 불가: {disabledCount}개</div>
+          <div style={{fontSize:11,color:"#e55"}}>
+            {recipes.filter(r=>(recipeStatus[r.id]||{}).disabled).map(r=>(
+              <span key={r.id} style={{marginRight:8}}>{r.name} ({(recipeStatus[r.id]||{outOfStock:[]}).outOfStock.join(",")} 없음)</span>
+            ))}
           </div>
-          {bannerOpen && (
-            <div style={{fontSize:11,color:"#e55",padding:"0 14px 10px",lineHeight:1.8}}>
-              {recipes.filter(r=>(recipeStatus[r.id]||{}).disabled).map(r=>(
-                <span key={r.id} style={{marginRight:8,display:"inline-block"}}>{r.name} ({(recipeStatus[r.id]||{outOfStock:[]}).outOfStock.join(",")} 없음)</span>
-              ))}
-            </div>
-          )}
         </div>
       )}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
