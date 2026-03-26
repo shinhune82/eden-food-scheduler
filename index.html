@@ -387,7 +387,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   const [hideDisabled, setHideDisabled] = useState(false);
   const [bannerOpen, setBannerOpen] = useState(false);
 
-  const openNew = () => { setEditId(null); setForm(emptyForm); setTagInput(""); setModal(true); };
+  const openNew = () => { setEditId(null); setForm(emptyForm); setModal(true); };
   const openEdit = r => { setEditId(r.id); setForm({name:r.name,color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x})),dishId:r.dishId||"",slotMap:r.slotMap||{}}); setModal(true); };
   const openCopy = r => { setEditId(null); const newIngs=r.ingredients.map(x=>({...x})); setForm({name:r.name+" (복사)",color:r.color,note:r.note||"",ingredients:newIngs,dishId:r.dishId||"",slotMap:rebuildSlotMap(r.slotMap,newIngs)}); setModal(true); };
 
