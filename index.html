@@ -383,8 +383,10 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   const [editId, setEditId] = useState(null);
   const emptyForm = { name:"", color:"#FFB347", note:"", ingredients:[{name:"",cubeCount:1}], dishId:"", slotMap:{} };
   const [form, setForm] = useState(emptyForm);
-  const [sortBy, setSortBy] = useState("fav");
+  const [sortBy, setSortBy] = useState("name_asc");
   const [hideDisabled, setHideDisabled] = useState(false);
+  const [bannerOpen, setBannerOpen] = useState(false);
+  const [favOnly, setFavOnly] = useState(false);
 
   const openNew = () => { setEditId(null); setForm(emptyForm); setModal(true); };
   const openEdit = r => { setEditId(r.id); setForm({name:r.name,color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x})),dishId:r.dishId||"",slotMap:r.slotMap||{}}); setModal(true); };
@@ -422,7 +424,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
     if (sortBy==="name_asc") return a.name.localeCompare(b.name,"ko");
     if (sortBy==="name_desc") return b.name.localeCompare(a.name,"ko");
     return 0;
-  }).filter(r => !hideDisabled || !(recipeStatus[r.id]||{}).disabled);
+  }).filter(r => !hideDisabled || !(recipeStatus[r.id]||{}).disabled).filter(r => !favOnly || r.favorite);
 
   const disabledCount = recipes.filter(r => (recipeStatus[r.id]||{}).disabled).length;
 
@@ -442,8 +444,16 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
         <span style={{fontWeight:700,fontSize:16,color:"#333"}}>레시피 목록 ({recipes.length})</span>
         <PillBtn onClick={openNew} small>+ 레시피 추가</PillBtn>
       </div>
-      <SortBar value={sortBy} onChange={setSortBy}
-        options={[["default","기본순"],["fav","⭐즐겨찾기"],["vol_desc","용량 많은순"],["vol_asc","용량 적은순"],["name_asc","가나다순"],["name_desc","가나다 역순"]]} />
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+        <SortBar value={sortBy} onChange={setSortBy}
+          options={[["name_asc","가나다순"],["name_desc","가나다 역순"],["vol_desc","용량 많은순"],["vol_asc","용량 적은순"]]} />
+        <button onClick={()=>setFavOnly(v=>!v)}
+          style={{padding:"5px 14px",borderRadius:20,border:"1.5px solid "+(favOnly?"#f9a825":"#e0e0e0"),
+            background:favOnly?"#fef08a":"#fff",color:favOnly?"#b45309":"#888",
+            fontSize:12,cursor:"pointer",fontWeight:favOnly?700:400,whiteSpace:"nowrap"}}>
+          {favOnly?"⭐ 즐겨찾기만":"☆ 즐겨찾기"}
+        </button>
+      </div>
       {disabledCount>0 && (
         <div style={{marginBottom:8}}>
           <button onClick={()=>setHideDisabled(v=>!v)}
@@ -460,12 +470,12 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
           const vol = cubeVolume(r, cubes);
           const totalC = r.ingredients.reduce((s,x)=>s+(Number(x.cubeCount)||0),0);
           return(
-            <div key={r.id} style={{background:st.disabled?"#fdf5f5":"#fff",borderRadius:16,padding:16,borderLeft:"4px solid "+(st.disabled?"#ffb3b3":r.color),boxShadow:"0 2px 12px rgba(0,0,0,0.04)",position:"relative",overflow:"hidden"}}>
+            <div key={r.id} style={{background:st.disabled?"#fdf5f5":r.favorite?"#fffdf0":"#fff",borderRadius:16,padding:16,borderLeft:"4px solid "+(st.disabled?"#ffb3b3":r.favorite?"#f9a825":r.color),boxShadow:r.favorite?"0 2px 16px rgba(249,168,37,0.18)":"0 2px 12px rgba(0,0,0,0.04)",position:"relative",overflow:"hidden"}}>
               {st.disabled && <div style={{position:"absolute",top:0,right:0,background:"#e55",color:"#fff",fontSize:10,fontWeight:700,padding:"3px 12px",borderBottomLeftRadius:10}}>재료 없음</div>}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div style={{flex:1,paddingRight:st.disabled?50:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
-                    <span style={{fontWeight:700,fontSize:15,color:st.disabled?"#999":"#333"}}>{st.disabled&&"🚫 "}{r.name}</span>
+                    <span style={{fontWeight:700,fontSize:15,color:st.disabled?"#999":"#333"}}>{st.disabled&&"🚫 "}{r.name}{r.favorite&&<span style={{marginLeft:5,fontSize:11,background:"#f9a825",color:"#fff",borderRadius:20,padding:"1px 7px",fontWeight:700,verticalAlign:"middle"}}>⭐ 즐찾</span>}</span>
                     <span style={{background:(st.disabled?"#ddd":r.color)+"22",border:"1px solid "+(st.disabled?"#ddd":r.color)+"66",borderRadius:20,padding:"1px 8px",fontSize:11,color:st.disabled?"#bbb":"#555",fontWeight:600}}>🧊 {totalC}개</span>
                     {vol>0 && <span style={{background:st.disabled?"#f5f5f5":"#e8f8f0",border:"1px solid "+(st.disabled?"#ddd":"#ade"),borderRadius:20,padding:"1px 8px",fontSize:11,color:st.disabled?"#bbb":"#4a9",fontWeight:600}}>💧 {vol}g</span>}
                   </div>
@@ -493,7 +503,8 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:5,marginLeft:8,flexShrink:0}}>
                   <button onClick={()=>setRecipes(rs=>rs.map(x=>x.id===r.id?{...x,favorite:!x.favorite}:x))}
-                    style={{background:r.favorite?"#fff8e1":"#f5f5f5",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:14}}>
+                    style={{background:r.favorite?"#fef08a":"#f5f5f5",border:"1.5px solid "+(r.favorite?"#f9a825":"#e0e0e0"),
+                      borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:16,lineHeight:1}}>
                     {r.favorite?"⭐":"☆"}
                   </button>
                   <button onClick={()=>openEdit(r)} style={{background:"#f5f5f5",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#666"}}>수정</button>
