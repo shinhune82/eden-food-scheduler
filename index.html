@@ -383,7 +383,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   const [editId, setEditId] = useState(null);
   const emptyForm = { name:"", color:"#FFB347", note:"", ingredients:[{name:"",cubeCount:1}], dishId:"", slotMap:{} };
   const [form, setForm] = useState(emptyForm);
-  const [sortBy, setSortBy] = useState("default");
+  const [sortBy, setSortBy] = useState("fav");
   const [hideDisabled, setHideDisabled] = useState(false);
 
   const openNew = () => { setEditId(null); setForm(emptyForm); setModal(true); };
