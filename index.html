@@ -1742,6 +1742,15 @@ function VaccTab({ vaccData, setVaccData }) {
     if (doneFilter === "done") return isDone(item.id);
     if (doneFilter === "todo") return !isDone(item.id);
     return true;
+  }).sort((a, b) => {
+    const aDone = isDone(a.id), bDone = isDone(b.id);
+    // 완료된 항목은 뒤로
+    if (aDone && !bDone) return 1;
+    if (!aDone && bDone) return -1;
+    // 미완료끼리는 dateMin 오름차순 (태어난 날부터 가까운 순)
+    if (a.dateMin < b.dateMin) return -1;
+    if (a.dateMin > b.dateMin) return 1;
+    return 0;
   });
 
   const dueCount = vaccDates.filter(v => getStatus(v) === "due").length;
@@ -1831,12 +1840,15 @@ function VaccTab({ vaccData, setVaccData }) {
                       <span style={{fontWeight:700,fontSize:13,color:done?"#aaa":"#333"}}>{item.name}</span>
                       {item.totalDoses > 1 && <span style={{fontSize:11,color:"#aaa"}}>{item.dose}차/{item.totalDoses}차</span>}
                     </div>
-                    <div style={{fontSize:12,color:"#888",marginBottom:4}}>📅 권장: {item.label} ({item.dateMin} ~ {item.dateMax})</div>
+                    {!done && <div style={{fontSize:12,color:"#888",marginBottom:4}}>📅 권장: {item.label}<br/><span style={{fontSize:11}}>({item.dateMin} ~ {item.dateMax})</span></div>}
                     {appt && appt.date && !done && (
                       <div style={{fontSize:12,color:"#74B5F5",fontWeight:600}}>🏥 예약일: {appt.date}{appt.memo&&" · "+appt.memo}</div>
                     )}
-                    {done && appt && appt.date && (
-                      <div style={{fontSize:11,color:"#aaa"}}>✅ 접종일: {appt.date}{appt.memo&&" · "+appt.memo}</div>
+                    {done && (
+                      <div style={{fontSize:12,color:"#7BC67E",fontWeight:600}}>
+                        ✅ 접종 완료{appt&&appt.date?" · "+appt.date:""}
+                        {appt&&appt.memo&&<span style={{fontSize:11,color:"#aaa",fontWeight:400}}> · {appt.memo}</span>}
+                      </div>
                     )}
                   </div>
                   <div style={{display:"flex",flexDirection:"column",gap:5,flexShrink:0,alignItems:"flex-end"}}>
