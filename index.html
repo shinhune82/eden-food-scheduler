@@ -840,19 +840,24 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 return(
                   <div key={d}
                     onClick={()=>{ if(moveSource) { doMove(d,meal); } else { openCell(d,meal); } }}
-                    onContextMenu={e=>{ e.preventDefault(); if(rec) startMove(d,meal,e); }}
                     style={{minHeight:72,borderRadius:10,cursor:moveSource?(rec||isMoveTarget?"copy":"not-allowed"):"pointer",padding:4,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",
                       background:isMoveSource?"#fff3cd":(d===dayView?(rec?rec.color+"44":"#e8f8f0"):(dis?"#fff5f5":rec?rec.color+"22":"#f9f9f9")),
                       border:isMoveSource?"2.5px dashed #f9a825":(isMoveTarget&&!rec?"2px dashed #7BC67E":(d===dayView?"2px solid #7BC67E":(dis?"1.5px solid #ffb3b3":rec?"1.5px solid "+rec.color+"55":"1.5px dashed #e0e0e0"))),
                       transition:"all 0.15s"}}>
-                    {isMoveSource && <div style={{fontSize:9,color:"#b45309",fontWeight:700,marginBottom:2}}>📦 이동 중</div>}
+                    {isMoveSource && <div style={{fontSize:9,color:"#b45309",fontWeight:700,marginBottom:2}}>📦 이동 중...</div>}
                     {rec ? (
-                      <div style={{textAlign:"center"}}>
+                      <div style={{textAlign:"center",width:"100%"}}>
                         {dis && <div style={{fontSize:9,color:"#e55",fontWeight:700}}>🚫재료없음</div>}
                         <div style={{fontSize:10,fontWeight:700,color:dis?"#c88":"#444",lineHeight:1.3}}>{rec.name}</div>
                         {vol>0 && <div style={{fontSize:9,color:"#4a9",marginTop:1}}>{vol}g</div>}
                         {allDone && !dis && <div style={{fontSize:9,color:"#4a9",fontWeight:700,marginTop:1}}>✓완료</div>}
                         {partDone && !dis && <div style={{fontSize:9,color:"#f90",fontWeight:700,marginTop:1}}>⚠부족</div>}
+                        {!moveSource && !isMoveSource && (
+                          <div onClick={e=>{e.stopPropagation();startMove(d,meal,e);}}
+                            style={{marginTop:3,fontSize:9,color:"#b45309",background:"#fff3cd",borderRadius:6,padding:"1px 5px",display:"inline-block",cursor:"pointer",fontWeight:600}}>
+                            📦 이동
+                          </div>
+                        )}
                       </div>
                     ) : <div style={{color:"#ccc",fontSize:18}}>+</div>}
                   </div>
