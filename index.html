@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>🥣 이든이 이유식 스케줄러</title>
+  <title>🍼 이든이 베이비 밀프랩</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍼</text></svg>" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -100,7 +101,7 @@ function LoginScreen() {
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",background:"linear-gradient(135deg,#7BC67E,#5BAD5E)",padding:24}}>
       <div style={{fontSize:52,marginBottom:16}}>🥣</div>
-      <div style={{fontSize:24,fontWeight:800,color:"#fff",marginBottom:8}}>이든이 이유식 스케줄러</div>
+      <div style={{fontSize:24,fontWeight:800,color:"#fff",marginBottom:8}}>이든이 베이비 밀프랩</div>
       <div style={{fontSize:13,color:"rgba(255,255,255,0.8)",marginBottom:40}}>건강한 한 끼를 기록해요 🌱</div>
       <button onClick={signIn} disabled={loading}
         style={{display:"flex",alignItems:"center",gap:10,background:"#fff",border:"none",borderRadius:16,padding:"14px 28px",fontSize:15,fontWeight:700,cursor:loading?"not-allowed":"pointer",opacity:loading?0.7:1,boxShadow:"0 4px 20px rgba(0,0,0,0.15)"}}>
@@ -697,7 +698,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
     setMoveSource({date, meal});
   };
   const doMove = (toDate, toMeal) => {
-    if (!moveSource) return;
+    if (!moveSource || moveSource === "standby") return;
     const { date: fromDate, meal: fromMeal } = moveSource;
     if (fromDate === toDate && fromMeal === toMeal) { setMoveSource(null); return; }
     const srcEntry = getEntry(fromDate, fromMeal);
@@ -737,7 +738,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
       {moveSource && (
         <div style={{background:"#fff3cd",border:"2px dashed #f9a825",borderRadius:12,padding:"10px 16px",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
           <div style={{fontSize:13,fontWeight:700,color:"#b45309"}}>
-            📦 이동 모드 — 옮길 칸을 탭해주세요
+            {moveSource === "standby" ? "📦 이동할 일정 셀을 탭해주세요" : "📦 이동할 위치를 탭해주세요"}
           </div>
           <button onClick={()=>setMoveSource(null)}
             style={{background:"#e0e0e0",border:"none",borderRadius:8,padding:"5px 12px",cursor:"pointer",fontSize:12,color:"#555",fontWeight:600,flexShrink:0}}>
@@ -793,7 +794,13 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
         <button onClick={()=>{const d=new Date(weekBase);d.setDate(d.getDate()-7);setWeekBase(d.toISOString().slice(0,10));}} style={{background:"#f0f0f0",border:"none",borderRadius:10,padding:"6px 14px",cursor:"pointer",fontSize:18}}>&#8249;</button>
         <span style={{fontWeight:700,color:"#333",fontSize:14}}>{fmtMD(weekDates[0])} ~ {fmtMD(weekDates[6])}</span>
-        <button onClick={()=>{const d=new Date(weekBase);d.setDate(d.getDate()+7);setWeekBase(d.toISOString().slice(0,10));}} style={{background:"#f0f0f0",border:"none",borderRadius:10,padding:"6px 14px",cursor:"pointer",fontSize:18}}>&#8250;</button>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <button onClick={()=>{ if(moveSource) setMoveSource(null); else setMoveSource("standby"); }}
+            style={{background:moveSource?"#fff3cd":"#f0f0f0",border:"1.5px solid "+(moveSource?"#f9a825":"transparent"),borderRadius:10,padding:"5px 10px",cursor:"pointer",fontSize:13,color:moveSource?"#b45309":"#888",fontWeight:moveSource?700:400}}>
+            📦 {moveSource?"이동 취소":"일정 이동"}
+          </button>
+          <button onClick={()=>{const d=new Date(weekBase);d.setDate(d.getDate()+7);setWeekBase(d.toISOString().slice(0,10));}} style={{background:"#f0f0f0",border:"none",borderRadius:10,padding:"6px 14px",cursor:"pointer",fontSize:18}}>&#8250;</button>
+        </div>
       </div>
       <div style={{overflowX:"auto",marginBottom:14}}>
         <div style={{minWidth:520}}>
@@ -835,14 +842,29 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 const checkedInTokens = entTokens.filter(tk=>entChecked.includes(tk));
                 const allDone = entTokens.length>0 && checkedInTokens.length===entTokens.length;
                 const partDone = entTokens.length>0 && checkedInTokens.length>0 && !allDone;
-                const isMoveSource = moveSource && moveSource.date===d && moveSource.meal===meal;
-                const isMoveTarget = moveSource && !(moveSource.date===d && moveSource.meal===meal);
+                const isMoveSource = moveSource && moveSource !== "standby" && moveSource.date===d && moveSource.meal===meal;
+                const isStandby = moveSource === "standby";
+                const isMoveTarget = moveSource && moveSource !== "standby" && !(moveSource.date===d && moveSource.meal===meal);
                 return(
                   <div key={d}
-                    onClick={()=>{ if(moveSource) { doMove(d,meal); } else { openCell(d,meal); } }}
+                    onClick={()=>{
+                      if (moveSource === "standby") {
+                        // 대기 상태: 원본 셀 선택
+                        if (rec) setMoveSource({date:d, meal:meal});
+                      } else if (moveSource) {
+                        // 원본 선택됨: 목적지 선택
+                        if (moveSource.date===d && moveSource.meal===meal) {
+                          setMoveSource(null);
+                        } else {
+                          doMove(d,meal);
+                        }
+                      } else {
+                        openCell(d,meal);
+                      }
+                    }}
                     style={{minHeight:72,borderRadius:10,cursor:moveSource?(rec||isMoveTarget?"copy":"not-allowed"):"pointer",padding:4,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",
-                      background:isMoveSource?"#fff3cd":(d===dayView?(rec?rec.color+"44":"#e8f8f0"):(dis?"#fff5f5":rec?rec.color+"22":"#f9f9f9")),
-                      border:isMoveSource?"2.5px dashed #f9a825":(isMoveTarget&&!rec?"2px dashed #7BC67E":(d===dayView?"2px solid #7BC67E":(dis?"1.5px solid #ffb3b3":rec?"1.5px solid "+rec.color+"55":"1.5px dashed #e0e0e0"))),
+                      background:isMoveSource?"#fff3cd":(isStandby&&rec?"#fffde7":(d===dayView?(rec?rec.color+"44":"#e8f8f0"):(dis?"#fff5f5":rec?rec.color+"22":"#f9f9f9"))),
+                      border:isMoveSource?"2.5px dashed #f9a825":(isStandby&&rec?"2px dashed #f9a825":(isMoveTarget&&!rec?"2px dashed #7BC67E":(d===dayView?"2px solid #7BC67E":(dis?"1.5px solid #ffb3b3":rec?"1.5px solid "+rec.color+"55":"1.5px dashed #e0e0e0")))),
                       transition:"all 0.15s"}}>
                     {isMoveSource && <div style={{fontSize:9,color:"#b45309",fontWeight:700,marginBottom:2}}>📦 이동 중...</div>}
                     {rec ? (
@@ -852,12 +874,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                         {vol>0 && <div style={{fontSize:9,color:"#4a9",marginTop:1}}>{vol}g</div>}
                         {allDone && !dis && <div style={{fontSize:9,color:"#4a9",fontWeight:700,marginTop:1}}>✓완료</div>}
                         {partDone && !dis && <div style={{fontSize:9,color:"#f90",fontWeight:700,marginTop:1}}>⚠부족</div>}
-                        {!moveSource && !isMoveSource && (
-                          <div onClick={e=>{e.stopPropagation();startMove(d,meal,e);}}
-                            style={{marginTop:3,fontSize:9,color:"#b45309",background:"#fff3cd",borderRadius:6,padding:"1px 5px",display:"inline-block",cursor:"pointer",fontWeight:600}}>
-                            📦 이동
-                          </div>
-                        )}
+
                       </div>
                     ) : <div style={{color:"#ccc",fontSize:18}}>+</div>}
                   </div>
@@ -2217,7 +2234,7 @@ function App({ user }) {
     <div style={{maxWidth:640,margin:"0 auto",minHeight:"100vh",background:"#F8FBF8",fontFamily:"'Noto Sans KR',sans-serif"}}>
       <div style={{background:"linear-gradient(135deg,#7BC67E 0%,#5BAD5E 100%)",padding:"24px 20px 20px",color:"#fff"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-          <div style={{fontSize:22,fontWeight:800,letterSpacing:-0.5}}>🥣 이유식 스케줄러</div>
+          <div style={{fontSize:22,fontWeight:800,letterSpacing:-0.5}}>🍼 베이비 밀프랩</div>
           {lastUpdated && <div style={{fontSize:10,opacity:0.75,background:"rgba(255,255,255,0.2)",borderRadius:10,padding:"3px 9px",marginTop:4}}>v{lastUpdated}</div>}
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
