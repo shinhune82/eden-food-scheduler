@@ -914,12 +914,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 {ent && rec && isAllChecked && <span style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:"#4a9",background:"#e8f8f0",borderRadius:20,padding:"2px 8px"}}>✓ 완료</span>}
                 {ent && rec && isPartialChecked && <span style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:"#f90",background:"#fff8e1",borderRadius:20,padding:"2px 8px"}}>⚠ 부족</span>}
               </div>
-              {ent && rec && !moveSource && (
-                <button onClick={e=>{e.stopPropagation();startMove(dayView,meal,e);}}
-                  style={{background:"#fff8e1",border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:12,color:"#b45309",margin:"0 8px 0 0",flexShrink:0}}>
-                  📦
-                </button>
-              )}
+
             </div>
             {ent && ent.memo && (
               <div style={{fontSize:12,color:"#666",padding:"6px 14px",background:"#fffde7",borderBottom:"1px solid #fff3cd",display:"flex",alignItems:"center",gap:6}}>
