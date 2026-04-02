@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>🍼 이든이 베이비 밀프랩</title>
+  <title>이든이 베이비 밀프랩</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍼</text></svg>" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <style>
@@ -734,19 +734,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         </div>
       )}
 
-      {/* 📦 일정 이동 모드 배너 */}
-      {moveSource && (
-        <div style={{background:"#fff3cd",border:"2px dashed #f9a825",borderRadius:12,padding:"10px 16px",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#b45309"}}>
-            {moveSource === "standby" ? "📦 이동할 일정 셀을 탭해주세요" : "📦 이동할 위치를 탭해주세요"}
-          </div>
-          <button onClick={()=>setMoveSource(null)}
-            style={{background:"#e0e0e0",border:"none",borderRadius:8,padding:"5px 12px",cursor:"pointer",fontSize:12,color:"#555",fontWeight:600,flexShrink:0}}>
-            ✕ 취소
-          </button>
-        </div>
-      )}
-
       {/* 💉 예방접종 주간 알림 배너 */}
       {(()=>{
         const birth = vaccData && vaccData.birth;
@@ -797,7 +784,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <button onClick={()=>{ if(moveSource) setMoveSource(null); else setMoveSource("standby"); }}
             style={{background:moveSource?"#fff3cd":"#f0f0f0",border:"1.5px solid "+(moveSource?"#f9a825":"transparent"),borderRadius:10,padding:"5px 10px",cursor:"pointer",fontSize:13,color:moveSource?"#b45309":"#888",fontWeight:moveSource?700:400}}>
-            📦 {moveSource?"이동 취소":"일정 이동"}
+            {moveSource==="standby"?"📦 셀 선택":moveSource?"📦 위치 선택":"📦 이동"}
           </button>
           <button onClick={()=>{const d=new Date(weekBase);d.setDate(d.getDate()+7);setWeekBase(d.toISOString().slice(0,10));}} style={{background:"#f0f0f0",border:"none",borderRadius:10,padding:"6px 14px",cursor:"pointer",fontSize:18}}>&#8250;</button>
         </div>
