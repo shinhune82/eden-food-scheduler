@@ -203,6 +203,24 @@ function remapSlotsToDish(slots, dishSlots, ingredients) {
   return result;
 }
 
+// 삭제 확인 다이얼로그
+function ConfirmDelete({ open, message, onConfirm, onCancel }) {
+  if (!open) return null;
+  return (
+    <div onClick={onCancel} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:20,padding:24,width:"100%",maxWidth:320,boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+        <div style={{fontSize:32,textAlign:"center",marginBottom:12}}>🗑️</div>
+        <div style={{fontSize:15,fontWeight:700,color:"#333",textAlign:"center",marginBottom:8}}>삭제하시겠어요?</div>
+        <div style={{fontSize:13,color:"#888",textAlign:"center",marginBottom:20,lineHeight:1.6}}>{message}</div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={onCancel} style={{flex:1,padding:"11px",border:"1.5px solid #e0e0e0",borderRadius:12,background:"#f5f5f5",cursor:"pointer",fontSize:14,fontWeight:600,color:"#666"}}>취소</button>
+          <button onClick={onConfirm} style={{flex:1,padding:"11px",border:"none",borderRadius:12,background:"#E78F8F",cursor:"pointer",fontSize:14,fontWeight:700,color:"#fff"}}>삭제</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function tokenLabel(tokenKey, allTokens) {
   const ingName = tokenKey.split("__g")[0];
   const sameGroup = allTokens.filter(t => t.ingName === ingName);
@@ -387,6 +405,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   const [hideDisabled, setHideDisabled] = useState(false);
   const [bannerOpen, setBannerOpen] = useState(false);
   const [favOnly, setFavOnly] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(null); // {id, name}
 
   const openNew = () => { setEditId(null); setForm(emptyForm); setModal(true); };
   const openEdit = r => { setEditId(r.id); setForm({name:r.name,color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x})),dishId:r.dishId||"",slotMap:r.slotMap||{}}); setModal(true); };
@@ -514,7 +533,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
                   </button>
                   <button onClick={()=>openEdit(r)} style={{background:"#f5f5f5",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#666"}}>수정</button>
                   <button onClick={()=>openCopy(r)} style={{background:"#e8f8f0",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#4a9"}}>복사</button>
-                  <button onClick={()=>setRecipes(rs=>rs.filter(x=>x.id!==r.id))} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
+                  <button onClick={()=>setConfirmDel({id:r.id,name:r.name})} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
                 </div>
               </div>
             </div>
@@ -618,6 +637,12 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
         </div>
         <PillBtn onClick={save} full>저장</PillBtn>
       </Overlay>
+      <ConfirmDelete
+        open={!!confirmDel}
+        message={confirmDel ? `"${confirmDel.name}" 레시피를 삭제할까요?` : ""}
+        onConfirm={()=>{ setRecipes(rs=>rs.filter(x=>x.id!==confirmDel.id)); setConfirmDel(null); }}
+        onCancel={()=>setConfirmDel(null)}
+      />
     </div>
   );
 }
@@ -634,6 +659,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   const [ddrop, setDdrop] = useState(false);
   const [rdropSearch, setRdropSearch] = useState("");
   const [editSlots, setEditSlots] = useState(false);
+  const [schedConfirmDel, setSchedConfirmDel] = useState(false);
   const [moveSource, setMoveSource] = useState(null); // {date, meal} - 이동할 원본 셀
   const [dayView, setDayView] = useState(todayStr());
   const [bannerOpen, setBannerOpen] = useState(false);
@@ -1253,13 +1279,19 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         <Field label="먹은 양" value={form.amount} onChange={v=>setForm(f=>({...f,amount:v}))} placeholder="80ml, 반 그릇..." />
         <div style={{display:"flex",gap:8}}>
           {getEntry(target.date,target.meal) && (
-            <PillBtn onClick={delEntry} color="#E78F8F" outline small>삭제</PillBtn>
+            <PillBtn onClick={()=>setSchedConfirmDel(true)} color="#E78F8F" outline small>삭제</PillBtn>
           )}
           <div style={{flex:1}}>
             <PillBtn onClick={saveEntry} full disabled={!form.recipeId||(recipeStatus[form.recipeId]||{}).disabled}>저장</PillBtn>
           </div>
         </div>
       </Overlay>
+      <ConfirmDelete
+        open={schedConfirmDel}
+        message={target.date ? `${fmtFull(target.date)} ${target.meal} 일정을 삭제할까요?` : ""}
+        onConfirm={()=>{ delEntry(); setSchedConfirmDel(false); }}
+        onCancel={()=>setSchedConfirmDel(false)}
+      />
     </div>
   );
 }
@@ -1278,6 +1310,7 @@ function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, se
   const [filterCat, setFilterCat] = useState("all");
   const [sortBy, setSortBy] = useState("stock_asc");
 
+  const [confirmDel, setConfirmDel] = useState(null);
   const openNew = () => { setEditId(null); setForm({ingredient:"",count:"",madeDate:todayStr(),weightG:"",categoryId:""}); setModal(true); };
   const openEdit = c => { setEditId(c.id); setForm({ingredient:c.ingredient,count:"0",madeDate:c.madeDate,weightG:String(c.weightG||""),categoryId:c.categoryId||""}); setModal(true); };
 
@@ -1419,7 +1452,7 @@ function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, se
                     <div style={{fontSize:10,color:"#bbb"}}>/ {c.count}개</div>
                   </div>
                   <button onClick={()=>openEdit(c)} style={{background:"#f5f5f5",border:"none",borderRadius:8,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#666"}}>수정</button>
-                  <button onClick={()=>setCubes(cs=>cs.filter(x=>x.id!==c.id))} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#e87"}}>삭제</button>
+                  <button onClick={()=>setConfirmDel({id:c.id,name:c.ingredient})} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#e87"}}>삭제</button>
                 </div>
               </div>
               <div style={{background:"#f0f0f0",borderRadius:10,height:6,marginBottom:6}}>
@@ -1491,7 +1524,7 @@ function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, se
             <div key={cat.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,padding:"8px 12px",background:cat.color+"55",borderRadius:12}}>
               <span style={{flex:1,fontSize:13,fontWeight:600,color:"#444"}}>{cat.name}</span>
               <button onClick={()=>openCatEdit(cat)} style={{background:"#f5f5f5",border:"none",borderRadius:8,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#666"}}>수정</button>
-              <button onClick={()=>setCategories(cs=>cs.filter(x=>x.id!==cat.id))} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#e87"}}>삭제</button>
+              <button onClick={()=>setConfirmDel({id:"cat_"+cat.id,name:"[카테고리] "+cat.name,catId:cat.id})} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#e87"}}>삭제</button>
             </div>
           ))}
         </div>
@@ -1507,6 +1540,16 @@ function CubeTab({ recipes, cubes, setCubes, stock, recipeStatus, categories, se
           </div>
         </div>
       </Overlay>
+      <ConfirmDelete
+        open={!!confirmDel}
+        message={confirmDel ? `"${confirmDel.name}"을 삭제할까요?` : ""}
+        onConfirm={()=>{
+          if (confirmDel.catId) setCategories(cs=>cs.filter(x=>x.id!==confirmDel.catId));
+          else setCubes(cs=>cs.filter(x=>x.id!==confirmDel.id));
+          setConfirmDel(null);
+        }}
+        onCancel={()=>setConfirmDel(null)}
+      />
     </div>
   );
 }
@@ -1525,6 +1568,7 @@ function SnackTab({ snacks, setSnacks }) {
   const [tagInput, setTagInput] = useState("");
   const [viewId, setViewId] = useState(null);
 
+  const [confirmDel, setConfirmDel] = useState(null);
   const openNew = () => { setEditId(null); setForm(emptyForm); setTagInput(""); setModal(true); };
   const openEdit = s => { setEditId(s.id); setForm({...s}); setTagInput((s.tags||[]).join(", ")); setModal(true); };
   const openView = s => setViewId(s.id);
@@ -1575,7 +1619,7 @@ function SnackTab({ snacks, setSnacks }) {
             <div style={{display:"flex",borderTop:"1px solid #f5f5f5"}}>
               <button onClick={e=>{e.stopPropagation();setSnacks(ss=>ss.map(x=>x.id===s.id?{...x,favorite:!x.favorite}:x));}} style={{flex:1,padding:"8px",background:s.favorite?"#fff8e1":"#fafafa",border:"none",borderRight:"1px solid #f0f0f0",cursor:"pointer",fontSize:14}}>{s.favorite?"⭐":"☆"}</button>
               <button onClick={e=>{e.stopPropagation();openEdit(s);}} style={{flex:2,padding:"8px",background:"#fafafa",border:"none",borderRight:"1px solid #f0f0f0",cursor:"pointer",fontSize:12,color:"#666"}}>수정</button>
-              <button onClick={e=>{e.stopPropagation();setSnacks(ss=>ss.filter(x=>x.id!==s.id));}} style={{flex:2,padding:"8px",background:"#fff5f5",border:"none",cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
+              <button onClick={e=>{e.stopPropagation();setConfirmDel({id:s.id,name:s.name});}} style={{flex:2,padding:"8px",background:"#fff5f5",border:"none",cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
             </div>
           </div>
         ))}
@@ -1616,6 +1660,12 @@ function SnackTab({ snacks, setSnacks }) {
         <Field label="메모" value={form.memo} onChange={v=>setForm(f=>({...f,memo:v}))} placeholder="아이가 좋아했음, 보관기간 3일" />
         <PillBtn onClick={save} full disabled={!form.name.trim()}>저장</PillBtn>
       </Overlay>
+      <ConfirmDelete
+        open={!!confirmDel}
+        message={confirmDel ? `"${confirmDel.name}" 간식 레시피를 삭제할까요?` : ""}
+        onConfirm={()=>{ setSnacks(ss=>ss.filter(x=>x.id!==confirmDel.id)); setConfirmDel(null); }}
+        onCancel={()=>setConfirmDel(null)}
+      />
     </div>
   );
 }
@@ -1726,7 +1776,8 @@ function calcVaccDates(birthStr) {
 // ────────────────────────────
 function VaccTab({ vaccData, setVaccData }) {
   const birth = vaccData.birth || "";
-  const appointments = vaccData.appointments || []; // [{id, vaccId, date, memo, done}]
+  const appointments = vaccData.appointments || [];
+  const [vaccConfirmDel, setVaccConfirmDel] = useState(null); // [{id, vaccId, date, memo, done}]
   const customVaccs = vaccData.customVaccs || []; // [{id, name, abbr, doses:[{dose,date,memo,done}]}]
 
   const [editBirth, setEditBirth] = useState(false);
@@ -1967,7 +2018,7 @@ function VaccTab({ vaccData, setVaccData }) {
                 </div>
                 <div style={{display:"flex",gap:4}}>
                   <button onClick={()=>{setCustomForm({...cv,editing:true});setCustomModal(true);}} style={{background:"#f5f5f5",border:"none",borderRadius:8,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#666"}}>수정</button>
-                  <button onClick={()=>setVaccData(v=>({...v,customVaccs:(v.customVaccs||[]).filter(x=>x.id!==cv.id)}))} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#e87"}}>삭제</button>
+                  <button onClick={()=>setVaccConfirmDel({id:cv.id,name:cv.name})} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"3px 8px",cursor:"pointer",fontSize:11,color:"#e87"}}>삭제</button>
                 </div>
               </div>
             </div>
@@ -2043,6 +2094,12 @@ function VaccTab({ vaccData, setVaccData }) {
           setCustomModal(false);
         }} full disabled={!customForm.name.trim()}>저장</PillBtn>
       </Overlay>
+      <ConfirmDelete
+        open={!!vaccConfirmDel}
+        message={vaccConfirmDel ? `"${vaccConfirmDel.name}" 접종 항목을 삭제할까요?` : ""}
+        onConfirm={()=>{ setVaccData(v=>({...v,customVaccs:(v.customVaccs||[]).filter(x=>x.id!==vaccConfirmDel.id)})); setVaccConfirmDel(null); }}
+        onCancel={()=>setVaccConfirmDel(null)}
+      />
     </div>
   );
 }
@@ -2054,6 +2111,7 @@ function DishTab({ dishes, setDishes }) {
   const [form, setForm] = useState({name:"",icon:"🍽️",slots:[""]});
   const DISH_ICONS = ["🍽️","⬜","🥣","🫙","🥗","🍲","🫕","🥡"];
 
+  const [confirmDel, setConfirmDel] = useState(null);
   const openEdit = d => { setEditId(d.id); setForm({name:d.name,icon:d.icon,slots:[...d.slots]}); setModal(true); };
   const addSlot = () => setForm(f=>({...f,slots:[...f.slots,""]}));
   const delSlot = i => setForm(f=>({...f,slots:f.slots.filter((_,idx)=>idx!==i)}));
@@ -2079,7 +2137,7 @@ function DishTab({ dishes, setDishes }) {
               <div><span style={{fontSize:20,marginRight:8}}>{d.icon}</span><span style={{fontWeight:700,fontSize:15,color:"#333"}}>{d.name}</span></div>
               <div style={{display:"flex",gap:6}}>
                 <button onClick={()=>openEdit(d)} style={{background:"#f5f5f5",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#666"}}>수정</button>
-                <button onClick={()=>setDishes(ds=>ds.filter(x=>x.id!==d.id))} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
+                <button onClick={()=>setConfirmDel({id:d.id,name:d.name})} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
               </div>
             </div>
             <div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -2111,6 +2169,12 @@ function DishTab({ dishes, setDishes }) {
         </div>
         <PillBtn onClick={saveDish} full>저장</PillBtn>
       </Overlay>
+      <ConfirmDelete
+        open={!!confirmDel}
+        message={confirmDel ? `"${confirmDel.name}" 식기를 삭제할까요?` : ""}
+        onConfirm={()=>{ setDishes(ds=>ds.filter(x=>x.id!==confirmDel.id)); setConfirmDel(null); }}
+        onCancel={()=>setConfirmDel(null)}
+      />
     </div>
   );
 }
