@@ -2470,5 +2470,14 @@ function Root() {
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<Root />);
 </script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/eden-food-scheduler/sw.js')
+      .then(reg => console.log('SW 등록:', reg.scope))
+      .catch(err => console.log('SW 실패:', err));
+  });
+}
+</script>
 </body>
 </html>
