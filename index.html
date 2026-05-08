@@ -2338,7 +2338,9 @@ function InstallBanner() {
   useEffect(() => {
     // 이미 설치됐거나, 닫은 적 있으면 표시 안 함
     if (isInStandalone) return;
-    if (localStorage.getItem('installBannerDismissed')) return;
+    // URL에 ?install=1 이면 강제 표시 (테스트용)
+    const forceShow = new URLSearchParams(window.location.search).get('install');
+    if (!forceShow && sessionStorage.getItem('installBannerDismissed')) return;
     // Android: beforeinstallprompt 이벤트 캐치
     const handler = (e) => {
       e.preventDefault();
@@ -2346,8 +2348,9 @@ function InstallBanner() {
       setShow(true);
     };
     window.addEventListener('beforeinstallprompt', handler);
-    // iOS는 이벤트 없으므로 그냥 표시
-    if (isIOS) setShow(true);
+    // iOS나 기타 브라우저도 표시
+    // 1.5초 후 배너 표시 (Android는 beforeinstallprompt가 오면 덮어씀)
+    setTimeout(()=>setShow(true), 1500);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
@@ -2366,7 +2369,7 @@ function InstallBanner() {
 
   const dismiss = () => {
     setShow(false);
-    localStorage.setItem('installBannerDismissed', '1');
+    sessionStorage.setItem('installBannerDismissed', '1');
   };
 
   if (!show) return null;
