@@ -1,0 +1,21 @@
+{
+  "name": "베이비 밀프랩",
+  "short_name": "밀프랩",
+  "description": "이든이의 건강한 한 끼 🌱",
+  "start_url": "/eden-food-scheduler/",
+  "scope": "/eden-food-scheduler/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8FBF8",
+  "theme_color": "#7BC67E",
+  "icons": [
+    {"src":"icon-72.png","sizes":"72x72","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-96.png","sizes":"96x96","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-128.png","sizes":"128x128","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-144.png","sizes":"144x144","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-152.png","sizes":"152x152","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-384.png","sizes":"384x384","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}
