@@ -112,7 +112,7 @@ function LoginScreen() {
   );
 }
 
-const STORAGE_KEYS = { r:"bf_r6", s:"bf_s6", c:"bf_c6", d:"bf_d6", cat:"bf_cat2", making:"bf_making1", snack:"bf_snack1", vacc:"bf_vacc1" };
+const STORAGE_KEYS = { r:"bf_r6", s:"bf_s6", c:"bf_c6", d:"bf_d6", cat:"bf_cat2", making:"bf_making1", snack:"bf_snack1", vacc:"bf_vacc1", unit:"bf_unit1" };
 const LEGACY_KEYS = {
   r:   ["bf_r5","bf_r4","bf_r3"],
   s:   ["bf_s5","bf_s4","bf_s3"],
@@ -650,11 +650,11 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
 // ────────────────────────────
 // 스케줄 탭
 // ────────────────────────────
-function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, vaccData, stock }) {
+function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, vaccData, stock, unitRecipes }) {
   const [weekBase, setWeekBase] = useState(todayStr());
   const [modal, setModal] = useState(false);
   const [target, setTarget] = useState({date:"",meal:""});
-  const [form, setForm] = useState({recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[]});
+  const [form, setForm] = useState({recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[],slotUnits:{}});
   const [rdrop, setRdrop] = useState(false);
   const [ddrop, setDdrop] = useState(false);
   const [rdropSearch, setRdropSearch] = useState("");
@@ -682,7 +682,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
       : (defRec ? rebuildSlotMap(rawSlots, defRec.ingredients) : rawSlots);
     setForm(ex
       ? {recipeId:nowDisabled?"":rId,dishId:defDish,amount:ex.amount||"",memo:ex.memo||"",checked:ex.checked||[],slots:defSlots}
-      : {recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[]}
+      : {recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[],slotUnits:{}}
     );
     setRdrop(false); setDdrop(false); setEditSlots(false);
     setModal(true);
@@ -971,6 +971,12 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                       <div key={slot} style={{marginBottom:8,borderRadius:12,border:"1.5px solid "+(slotAllChecked?"#7BC67E":"#e0e0e0"),overflow:"hidden"}}>
                         <div style={{background:slotAllChecked?"#e8f8f0":"#f5f5f5",padding:"5px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                           <span style={{fontSize:11,fontWeight:700,color:"#555"}}>📌 {slot}</span>
+                          {(()=>{
+                            const slotUnitId = ent.slotUnits && ent.slotUnits[slot];
+                            const slotUnit = slotUnitId && unitRecipes ? unitRecipes.find(u=>u.id===slotUnitId) : null;
+                            if(!slotUnit) return null;
+                            return <span style={{fontSize:10,background:slotUnit.color+"33",borderRadius:10,padding:"1px 6px",color:"#555",fontWeight:600}}>{slotUnit.name}</span>;
+                          })()}
                           <span style={{fontSize:11,color:slotAllChecked?"#4a9":"#aaa",fontWeight:600}}>
                             {tokensToShow.filter(t=>checked.includes(t.tokenKey)).length}/{tokensToShow.length}
                           </span>
@@ -1293,9 +1299,29 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                       <div key={slot} style={{borderRadius:14,border:"2px solid "+SLOT_COLORS[si],background:"#fff",overflow:"hidden"}}>
                         <div style={{background:SLOT_COLORS[si],padding:"7px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                           <span style={{fontSize:12,fontWeight:700,color:"#555"}}>{slot}</span>
-                          <span style={{fontSize:11,color:allChecked?"#4a9":"#aaa",fontWeight:600}}>
-                            {tokensToShow.filter(t=>form.checked.includes(t.tokenKey)).length}/{tokensToShow.length} 준비완료
-                          </span>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            {/* 유닛 레시피 선택 드롭다운 */}
+                            {unitRecipes && unitRecipes.length>0 && (()=>{
+                              const slotUnitId = form.slotUnits && form.slotUnits[slot];
+                              const slotUnit = slotUnitId ? unitRecipes.find(u=>u.id===slotUnitId) : null;
+                              return(
+                                <select value={slotUnitId||""} onChange={e=>{
+                                  const uid2 = e.target.value;
+                                  setForm(f=>({...f, slotUnits:{...(f.slotUnits||{}), [slot]: uid2||null}}));
+                                }}
+                                  style={{fontSize:10,padding:"2px 4px",borderRadius:6,border:"1px solid #ccc",
+                                    background:slotUnit?slotUnit.color+"33":"#fff",cursor:"pointer",maxWidth:90}}>
+                                  <option value="">유닛 없음</option>
+                                  {unitRecipes.map(u=>(
+                                    <option key={u.id} value={u.id}>{u.type} {u.name}</option>
+                                  ))}
+                                </select>
+                              );
+                            })()}
+                            <span style={{fontSize:11,color:allChecked?"#4a9":"#aaa",fontWeight:600}}>
+                              {tokensToShow.filter(t=>form.checked.includes(t.tokenKey)).length}/{tokensToShow.length}
+                            </span>
+                          </div>
                         </div>
                         <div style={{padding:"8px 10px",display:"flex",flexDirection:"column",gap:5}}>
                           {tokensToShow.map(({tokenKey,ingName,ing})=>{
@@ -1784,6 +1810,193 @@ function SnackTab({ snacks, setSnacks }) {
         open={!!confirmDel}
         message={confirmDel ? `"${confirmDel.name}" 간식 레시피를 삭제할까요?` : ""}
         onConfirm={()=>{ setSnacks(ss=>ss.filter(x=>x.id!==confirmDel.id)); setConfirmDel(null); }}
+        onCancel={()=>setConfirmDel(null)}
+      />
+    </div>
+  );
+}
+
+// ────────────────────────────
+// 유닛 레시피 탭
+// ────────────────────────────
+function UnitRecipeTab({ unitRecipes, setUnitRecipes, cubes, stock, categories }) {
+  const [modal, setModal] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState("전체");
+  const emptyForm = { name:"", type:"반찬", color:"#7BC67E", note:"", ingredients:[{name:"",cubeCount:1}] };
+  const [form, setForm] = useState(emptyForm);
+
+  const UNIT_TYPES = ["밥","국","반찬","소스","기타"];
+  const TYPE_COLORS = {밥:"#FFE0A3",국:"#B0E8D0",반찬:"#F8C8C8",소스:"#E8C8F8",기타:"#E8E8E8"};
+  const TYPE_ICONS = {밥:"🍚",국:"🍲",반찬:"🥗",소스:"🫙",기타:"🍴"};
+
+  const openNew = () => { setEditId(null); setForm(emptyForm); setModal(true); };
+  const openEdit = r => { setEditId(r.id); setForm({name:r.name,type:r.type||"반찬",color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x}))}); setModal(true); };
+
+  const addIng = () => setForm(f=>({...f,ingredients:[...f.ingredients,{name:"",cubeCount:1}]}));
+  const delIng = i => setForm(f=>({...f,ingredients:f.ingredients.filter((_,idx)=>idx!==i)}));
+  const setIng = (i,k,v) => setForm(f=>{const a=[...f.ingredients];a[i]={...a[i],[k]:k==="cubeCount"?Number(v):v};return {...f,ingredients:a};});
+
+  const save = () => {
+    const ings = form.ingredients.filter(x=>x.name.trim()).map(x=>({...x,cubeCount:Number(x.cubeCount)||1}));
+    if (!form.name||!ings.length) return;
+    if (editId) {
+      setUnitRecipes(rs=>rs.map(r=>r.id===editId?{...r,...form,ingredients:ings,updatedAt:todayStr()}:r));
+    } else {
+      setUnitRecipes(rs=>[...rs,{id:uid(),name:form.name,type:form.type,color:form.color,note:form.note,ingredients:ings,updatedAt:todayStr()}]);
+    }
+    setModal(false);
+  };
+
+  const filtered = unitRecipes.filter(r=>{
+    const ms = !search || r.name.includes(search);
+    const mt = filterType==="전체" || r.type===filterType;
+    return ms && mt;
+  });
+
+  // 재료 부족 여부 체크
+  const getStatus = (r) => {
+    const oos = r.ingredients.filter(ing=>{
+      const cube = cubes.find(c=>c.ingredient===ing.name);
+      if(!cube) return false;
+      return (stock[ing.name]||0) < (Number(ing.cubeCount)||0);
+    });
+    return { disabled: oos.length>0, outOfStock: oos.map(i=>i.name) };
+  };
+
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <span style={{fontWeight:700,fontSize:16,color:"#333"}}>유닛 레시피 ({unitRecipes.length})</span>
+        <PillBtn onClick={openNew} small>+ 추가</PillBtn>
+      </div>
+      {/* 검색 */}
+      <div style={{position:"relative",marginBottom:10}}>
+        <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:14,color:"#bbb"}}>🔍</span>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="유닛 레시피 검색..."
+          style={{width:"100%",padding:"9px 12px 9px 34px",border:"1.5px solid #e8e8e8",borderRadius:12,fontSize:13,outline:"none",background:"#fafafa",boxSizing:"border-box"}} />
+      </div>
+      {/* 타입 필터 */}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+        {["전체",...UNIT_TYPES].map(t=>(
+          <button key={t} onClick={()=>setFilterType(t)}
+            style={{padding:"4px 12px",borderRadius:20,border:"1.5px solid "+(filterType===t?"#555":"#e0e0e0"),
+              background:filterType===t?(TYPE_COLORS[t]||"#7BC67E22"):"#fff",
+              color:"#444",fontSize:12,cursor:"pointer",fontWeight:filterType===t?700:400}}>
+            {TYPE_ICONS[t]||""} {t}
+          </button>
+        ))}
+      </div>
+      {/* 레시피 목록 */}
+      {filtered.length===0 && (
+        <div style={{textAlign:"center",padding:"40px 0",color:"#bbb"}}>
+          <div style={{fontSize:40,marginBottom:8}}>🍱</div>
+          <div>유닛 레시피를 추가해보세요!</div>
+          <div style={{fontSize:12,marginTop:6,color:"#ccc"}}>미역국, 야채전, 현미밥 등 단품 레시피</div>
+        </div>
+      )}
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {filtered.map(r=>{
+          const st = getStatus(r);
+          const vol = r.ingredients.reduce((s,ing)=>{
+            const cube=cubes.find(c=>c.ingredient===ing.name);
+            return s+(Number(ing.cubeCount)||0)*(cube?Number(cube.weightG)||0:0);
+          },0);
+          const totalC = r.ingredients.reduce((s,x)=>s+(Number(x.cubeCount)||0),0);
+          return(
+            <div key={r.id} style={{background:st.disabled?"#fdf5f5":"#fff",borderRadius:16,padding:16,
+              borderLeft:"4px solid "+(st.disabled?"#ffb3b3":r.color),
+              boxShadow:"0 2px 12px rgba(0,0,0,0.04)",position:"relative"}}>
+              {st.disabled && <div style={{position:"absolute",top:0,right:0,background:"#e55",color:"#fff",fontSize:10,fontWeight:700,padding:"3px 12px",borderBottomLeftRadius:10}}>재료 없음</div>}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,flexWrap:"wrap"}}>
+                    <span style={{background:TYPE_COLORS[r.type]||"#eee",borderRadius:20,padding:"1px 8px",fontSize:11,fontWeight:700,color:"#555"}}>
+                      {TYPE_ICONS[r.type]||"🍴"} {r.type||"기타"}
+                    </span>
+                    <span style={{fontWeight:700,fontSize:15,color:st.disabled?"#999":"#333"}}>{r.name}</span>
+                    <span style={{background:r.color+"22",border:"1px solid "+r.color+"66",borderRadius:20,padding:"1px 8px",fontSize:11,color:"#555",fontWeight:600}}>🧊 {totalC}개</span>
+                    {vol>0&&<span style={{background:"#e8f8f0",borderRadius:20,padding:"1px 8px",fontSize:11,color:"#4a9",fontWeight:600}}>💧 {vol}g</span>}
+                  </div>
+                  <div>
+                    {r.ingredients.map(ing=>{
+                      const oos = st.outOfStock.includes(ing.name);
+                      return(
+                        <span key={ing.name} style={{display:"inline-flex",alignItems:"center",gap:3,
+                          background:oos?"#fff0f0":r.color+"18",border:"1px solid "+(oos?"#ffb3b3":r.color+"55"),
+                          borderRadius:20,padding:"2px 8px",marginRight:5,marginBottom:4,fontSize:11}}>
+                          {oos&&"⚠️ "}<span style={{color:oos?"#e55":"#555"}}>{ing.name}</span>
+                          <span style={{fontWeight:700,color:oos?"#e55":r.color}}>x{ing.cubeCount}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {r.note&&<div style={{fontSize:12,color:"#999",marginTop:4}}>{r.note}</div>}
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:5,marginLeft:8,flexShrink:0}}>
+                  <button onClick={()=>openEdit(r)} style={{background:"#f5f5f5",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#666"}}>수정</button>
+                  <button onClick={()=>setConfirmDel({id:r.id,name:r.name})} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"4px 10px",cursor:"pointer",fontSize:12,color:"#e87"}}>삭제</button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 추가/수정 모달 */}
+      <Overlay open={modal} onClose={()=>setModal(false)} title={editId?"유닛 레시피 수정":"유닛 레시피 추가"}>
+        {/* 타입 선택 */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:12,color:"#888",marginBottom:6}}>종류</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {UNIT_TYPES.map(t=>(
+              <div key={t} onClick={()=>setForm(f=>({...f,type:t}))}
+                style={{padding:"5px 14px",borderRadius:20,cursor:"pointer",fontSize:13,fontWeight:form.type===t?700:400,
+                  background:form.type===t?(TYPE_COLORS[t]||"#e8f8f0"):"#f5f5f5",
+                  border:"1.5px solid "+(form.type===t?"#555":"transparent"),color:"#444"}}>
+                {TYPE_ICONS[t]} {t}
+              </div>
+            ))}
+          </div>
+        </div>
+        <Field label="이름" value={form.name} onChange={v=>setForm(f=>({...f,name:v}))} placeholder="미역국, 야채전, 현미밥 등" />
+        <Field label="메모" value={form.note} onChange={v=>setForm(f=>({...f,note:v}))} placeholder="조리 특이사항 등" />
+        {/* 색상 */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:12,color:"#888",marginBottom:4}}>색상</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {RECIPE_COLORS.map(c=>(
+              <div key={c} onClick={()=>setForm(f=>({...f,color:c}))}
+                style={{width:28,height:28,borderRadius:50,background:c,cursor:"pointer",border:form.color===c?"3px solid #333":"3px solid transparent"}} />
+            ))}
+          </div>
+        </div>
+        {/* 재료 */}
+        <div style={{marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{fontSize:12,color:"#888"}}>재료 & 큐브 수</div>
+            <button onClick={addIng} style={{background:"#f0f0f0",border:"none",borderRadius:8,padding:"3px 10px",cursor:"pointer",fontSize:12,color:"#666"}}>+ 추가</button>
+          </div>
+          {form.ingredients.map((ing,i)=>(
+            <div key={i} style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}>
+              <IngSearch value={ing.name} onChange={v=>setIng(i,"name",v)} cubes={cubes} />
+              <input value={ing.cubeCount} onChange={e=>setIng(i,"cubeCount",e.target.value)} type="number" min="1"
+                style={{width:50,padding:"8px",border:"1.5px solid #e8e8e8",borderRadius:10,fontSize:13,outline:"none",background:"#fafafa",textAlign:"center"}} />
+              <span style={{fontSize:11,color:"#aaa",flexShrink:0}}>개</span>
+              {form.ingredients.length>1&&(
+                <button onClick={()=>delIng(i)} style={{background:"#ffeaea",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:12,color:"#e87",flexShrink:0}}>✕</button>
+              )}
+            </div>
+          ))}
+        </div>
+        <PillBtn onClick={save} full disabled={!form.name||!form.ingredients.some(x=>x.name.trim())}>저장</PillBtn>
+      </Overlay>
+      <ConfirmDelete
+        open={!!confirmDel}
+        message={confirmDel?`"${confirmDel.name}" 유닛 레시피를 삭제할까요?`:""}
+        onConfirm={()=>{setUnitRecipes(rs=>rs.filter(x=>x.id!==confirmDel.id));setConfirmDel(null);}}
         onCancel={()=>setConfirmDel(null)}
       />
     </div>
@@ -2311,6 +2524,7 @@ function App({ user }) {
   const [categories, setCategoriesRaw] = useState([]);
   const [makingIds, setMakingIdsRaw] = useState([]);
   const [snacks, setSnacksRaw] = useState([]);
+  const [unitRecipes, setUnitRecipesRaw] = useState([]);
   const [vaccData, setVaccDataRaw] = useState({birth:"",appointments:[],customVaccs:[]});
   const [ready, setReady] = useState(false);
 
@@ -2346,6 +2560,7 @@ function App({ user }) {
         const making = await fsGet(STORAGE_KEYS.making);
         const snack = await fsGet(STORAGE_KEYS.snack);
         const vacc = await fsGet(STORAGE_KEYS.vacc);
+        const unit = await fsGet(STORAGE_KEYS.unit);
         console.log("📦 r:", r, "setRecipes 호출");
         // null이면 빈 배열/기본값 사용 (INIT_ 데이터로 덮어쓰지 않음)
         setRecipesRaw(r   || []);
@@ -2355,6 +2570,7 @@ function App({ user }) {
         setCategoriesRaw(cat || INIT_CATEGORIES);
         setMakingIdsRaw(making || []);
         setSnacksRaw(snack || []);
+        setUnitRecipesRaw(unit || []);
         setVaccDataRaw(vacc || {birth:"",appointments:[],customVaccs:[]});
         setReady(true);
       };
@@ -2377,6 +2593,7 @@ function App({ user }) {
   const setCategories = useCallback(fn=>{setCategoriesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setMakingIds  = useCallback(fn=>{setMakingIdsRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setSnacks     = useCallback(fn=>{setSnacksRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
+  const setUnitRecipes = useCallback(fn=>{setUnitRecipesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;firebase.firestore().collection("users").doc(firebase.auth().currentUser?.uid).collection("data").doc(STORAGE_KEYS.unit).set({value:JSON.stringify(n)});return n;});}, []);
   const setVaccData   = useCallback(fn=>{setVaccDataRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
 
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; console.log("💾 recipes 저장"); firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.r).set({value:JSON.stringify(recipes)}); },[recipes, ready]);
@@ -2386,6 +2603,7 @@ function App({ user }) {
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.cat).set({value:JSON.stringify(categories)}); },[categories, ready]);
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.making).set({value:JSON.stringify(makingIds)}); },[makingIds, ready]);
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.snack).set({value:JSON.stringify(snacks)}); },[snacks, ready]);
+  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.unit).set({value:JSON.stringify(unitRecipes)}); },[unitRecipes, ready]);
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.vacc).set({value:JSON.stringify(vaccData)}); },[vaccData, ready]);
 
   const { stock, status } = calcStock(cubes, schedules, recipes);
@@ -2405,10 +2623,10 @@ function App({ user }) {
   if (!ready) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",color:"#aaa",fontSize:16}}>로딩 중...</div>;
 
   const TABS = [
-    { label:"🍳 레시피", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock} /> },
-    { label:"📅 스케줄", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} vaccData={vaccData} stock={stock} /> },
+    { label:"🍳 메인", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock} /> },
+    { label:"📅 스케줄", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} vaccData={vaccData} stock={stock} unitRecipes={unitRecipes} /> },
+    { label:"🍱 유닛", el:<UnitRecipeTab unitRecipes={unitRecipes} setUnitRecipes={setUnitRecipes} cubes={cubes} stock={stock} categories={categories} /> },
     { label:"🧊 큐브",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} makingIds={makingIds} setMakingIds={setMakingIds} /> },
-    { label:"🍪 간식",   el:<SnackTab snacks={snacks} setSnacks={setSnacks} /> },
     { label:"🍽️ 식기",  el:<DishTab dishes={dishes} setDishes={setDishes} /> },
     { label:"💉 접종",   el:<VaccTab vaccData={vaccData} setVaccData={setVaccData} /> },
   ];
