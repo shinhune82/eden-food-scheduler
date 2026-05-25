@@ -758,7 +758,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   const [weekBase, setWeekBase] = useState(todayStr());
   const [modal, setModal] = useState(false);
   const [target, setTarget] = useState({date:"",meal:""});
-  const [form, setForm] = useState({recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[],slotUnits:{}});
+  const [form, setForm] = useState({recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[],customUnits:[],customSlotUnits:{},customSlotIngredients:{},slotUnits:{}});
   const [rdrop, setRdrop] = useState(false);
   const [ddrop, setDdrop] = useState(false);
   const [rdropSearch, setRdropSearch] = useState("");
@@ -786,7 +786,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
       : (defRec ? rebuildSlotMap(rawSlots, defRec.ingredients) : rawSlots);
     setForm(ex
       ? {recipeId:nowDisabled?"":rId,dishId:defDish,amount:ex.amount||"",memo:ex.memo||"",checked:ex.checked||[],slots:defSlots}
-      : {recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[],slotUnits:{}}
+      : {recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[],customUnits:[],customSlotUnits:{},customSlotIngredients:{},slotUnits:{}}
     );
     setRdrop(false); setDdrop(false); setEditSlots(false);
     setModal(true);
@@ -816,7 +816,13 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   const saveEntry = () => {
     if (!form.recipeId) return;
     if (!isCustomMode && (recipeStatus[form.recipeId]||{}).disabled) return;
-    setSchedules(ss=>[...ss.filter(s=>!(s.date===target.date&&s.meal===target.meal)), {id:uid(),date:target.date,meal:target.meal,...form}]);
+    const entryData = {...form};
+    // 직접 구성 모드: slotUnits에 customSlotUnits 합치기
+    if(isCustomMode) {
+      entryData.slotUnits = form.customSlotUnits||{};
+      entryData.slots = form.customSlotIngredients||{};
+    }
+    setSchedules(ss=>[...ss.filter(s=>!(s.date===target.date&&s.meal===target.meal)), {id:uid(),date:target.date,meal:target.meal,...entryData}]);
     setModal(false);
   };
   const delEntry = () => { setSchedules(ss=>ss.filter(s=>!(s.date===target.date&&s.meal===target.meal))); setModal(false); };
@@ -843,9 +849,18 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   };
 
   const isCustomMode = form.recipeId === "__custom__";
+  const customUnitIngredients = isCustomMode
+    ? (form.customUnits||[]).flatMap(uId=>{
+        const u=(unitRecipes||[]).find(x=>x.id===uId);
+        return u ? u.ingredients : [];
+      })
+    : [];
   const customRecipe = isCustomMode ? {
     id:"__custom__", name:"직접 구성", color:"#7BC67E",
-    ingredients: form.customIngredients.map(ci=>({name:ci.name, cubeCount:ci.count}))
+    ingredients: [
+      ...form.customIngredients.map(ci=>({name:ci.name, cubeCount:ci.count})),
+      ...customUnitIngredients,
+    ]
   } : null;
   const selRec = isCustomMode ? customRecipe : recipes.find(r=>r.id===form.recipeId);
   const selDish = dishes.find(d=>d.id===form.dishId);
@@ -1197,6 +1212,102 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         {/* 직접 구성 모드: 큐브 선택 UI */}
         {isCustomMode && (
           <div style={{marginBottom:14}}>
+            {/* 유닛 레시피 선택 */}
+            {unitRecipes && unitRecipes.length > 0 && (
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:12,color:"#4a9",fontWeight:700,marginBottom:6}}>🍱 유닛 레시피 선택</div>
+                {/* 선택된 유닛 목록 */}
+                {(form.customUnits||[]).length > 0 && (
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+                    {(form.customUnits||[]).map((uId,uidx)=>{
+                      const u = unitRecipes.find(x=>x.id===uId);
+                      if(!u) return null;
+                      return(
+                        <div key={uidx} style={{display:"flex",alignItems:"center",gap:4,
+                          background:u.color+"22",border:"1.5px solid "+u.color+"88",
+                          borderRadius:20,padding:"3px 10px",fontSize:12}}>
+                          <span style={{fontSize:10,background:u.color+"44",borderRadius:10,padding:"1px 5px",color:"#555"}}>{u.type}</span>
+                          <span style={{fontWeight:600,color:"#333"}}>{u.name}</span>
+                          <button onClick={()=>setForm(f=>({...f,customUnits:(f.customUnits||[]).filter((_,i)=>i!==uidx)}))}
+                            style={{background:"none",border:"none",cursor:"pointer",color:"#aaa",fontSize:13,padding:"0 2px"}}>✕</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <select onChange={e=>{
+                  const val = e.target.value;
+                  if(!val) return;
+                  setForm(f=>({...f, customUnits:[...(f.customUnits||[]), val]}));
+                  e.target.value="";
+                }} style={{width:"100%",padding:"8px 12px",border:"1.5px solid #e8e8e8",borderRadius:10,fontSize:13,outline:"none",background:"#fafafa",cursor:"pointer"}}>
+                  <option value="">+ 유닛 레시피 추가...</option>
+                  {["밥","국","반찬","소스","기타"].map(type=>{
+                    const filtered = (unitRecipes||[]).filter(u=>u.type===type);
+                    if(filtered.length===0) return null;
+                    return(
+                      <optgroup key={type} label={type}>
+                        {filtered.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
+                      </optgroup>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+            {/* 식판 칸 배치 */}
+            {selDish && ((form.customUnits||[]).length>0 || form.customIngredients.length>0) && (
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:12,color:"#4a9",fontWeight:700,marginBottom:6}}>🍽️ 식판 칸 배치</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat("+Math.min(selDish.slots.length,3)+",1fr)",gap:6}}>
+                  {selDish.slots.map((slot,si)=>(
+                    <div key={slot} style={{borderRadius:10,border:"2px solid "+SLOT_COLORS[si],background:"#fff",padding:"8px 6px"}}>
+                      <div style={{fontSize:10,fontWeight:700,textAlign:"center",marginBottom:6,color:"#555",background:SLOT_COLORS[si],borderRadius:6,padding:"2px 4px"}}>{slot}</div>
+                      {/* 유닛 선택 */}
+                      {(form.customUnits||[]).length>0 && (
+                        <select
+                          value={(form.customSlotUnits||{})[slot]||""}
+                          onChange={e=>setForm(f=>({...f,customSlotUnits:{...(f.customSlotUnits||{}),[slot]:e.target.value||null}}))}
+                          style={{width:"100%",fontSize:10,padding:"3px 4px",borderRadius:6,border:"1px solid #ddd",marginBottom:4,
+                            background:(form.customSlotUnits||{})[slot]
+                              ? (unitRecipes.find(u=>u.id===(form.customSlotUnits||{})[slot])?.color||"#fff")+"33"
+                              : "#fafafa",cursor:"pointer"}}>
+                          <option value="">유닛 없음</option>
+                          {(form.customUnits||[]).map((uId,uidx)=>{
+                            const u=unitRecipes.find(x=>x.id===uId);
+                            if(!u) return null;
+                            return <option key={uidx} value={uId}>{u.name}</option>;
+                          })}
+                        </select>
+                      )}
+                      {/* 큐브 배치 - 간단히 체크 */}
+                      {form.customIngredients.map(ci=>{
+                        const inSlot = ((form.customSlotIngredients||{})[slot]||[]).includes(ci.name);
+                        const inOther = selDish.slots.filter(s=>s!==slot).some(s=>((form.customSlotIngredients||{})[s]||[]).includes(ci.name));
+                        return(
+                          <div key={ci.name}
+                            onClick={()=>{
+                              if(inOther) return;
+                              setForm(f=>{
+                                const cur = (f.customSlotIngredients||{})[slot]||[];
+                                const next = inSlot ? cur.filter(x=>x!==ci.name) : [...cur,ci.name];
+                                return {...f, customSlotIngredients:{...(f.customSlotIngredients||{}),[slot]:next}};
+                              });
+                            }}
+                            style={{display:"flex",alignItems:"center",gap:4,padding:"3px 4px",borderRadius:6,cursor:inOther?"not-allowed":"pointer",
+                              background:inSlot?SLOT_COLORS[si]:"transparent",opacity:inOther?0.35:1,fontSize:11,color:"#444"}}>
+                            <span style={{width:12,height:12,borderRadius:3,border:"1.5px solid "+(inSlot?"#888":"#ccc"),
+                              background:inSlot?"#fff":"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              {inSlot&&<span style={{fontSize:8,fontWeight:700}}>✓</span>}
+                            </span>
+                            {ci.name} x{ci.count}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div style={{fontSize:12,color:"#4a9",fontWeight:700,marginBottom:8}}>✏️ 재고 있는 큐브 선택</div>
             {/* 영양 균형 현황 */}
             {form.customIngredients.length > 0 && (()=>{
