@@ -259,18 +259,33 @@ const INIT_CUBES = [
   {id:"c7",ingredient:"쌀",count:20,madeDate:"2026-02-20",weightG:20,categoryId:"cat1"},
 ];
 
-function cubeVolume(recipe, cubes) {
-  return recipe.ingredients.reduce((sum, ing) => {
+function cubeVolume(recipe, cubes, unitRecipes) {
+  const ingVol = (recipe.ingredients||[]).reduce((sum, ing) => {
     const c = cubes.find(x => x.ingredient === ing.name);
     return sum + (Number(ing.cubeCount)||0) * (c ? Number(c.weightG)||0 : 0);
   }, 0);
+  const unitVol = (recipe.unitIds||[]).reduce((sum, uId) => {
+    const u = (unitRecipes||[]).find(x=>x.id===uId);
+    if(!u) return sum;
+    return sum + u.ingredients.reduce((s,ing)=>{
+      const c = cubes.find(x=>x.ingredient===ing.name);
+      return s + (Number(ing.cubeCount)||0)*(c?Number(c.weightG)||0:0);
+    }, 0);
+  }, 0);
+  return ingVol + unitVol;
 }
 
 function calcStock(cubes, schedules, recipes) {
   const used = {};
   schedules.forEach(s => {
     const rec = recipes.find(r => r.id === s.recipeId);
-    if (rec) rec.ingredients.forEach(ing => { used[ing.name] = (used[ing.name]||0) + (Number(ing.cubeCount)||0); });
+    if (rec) {
+      rec.ingredients.forEach(ing => { used[ing.name] = (used[ing.name]||0) + (Number(ing.cubeCount)||0); });
+      (rec.unitIds||[]).forEach(uId => {
+        const u = (window._unitRecipes||[]).find(x=>x.id===uId);
+        if(u) u.ingredients.forEach(ing => { used[ing.name] = (used[ing.name]||0) + (Number(ing.cubeCount)||0); });
+      });
+    }
   });
   const stock = {};
   cubes.forEach(c => { stock[c.ingredient] = Math.max(0, c.count - (used[c.ingredient]||0)); });
@@ -396,10 +411,10 @@ function IngSearch({ value, onChange, cubes }) {
 // ────────────────────────────
 // 레시피 탭
 // ────────────────────────────
-function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) {
+function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock, unitRecipes }) {
   const [modal, setModal] = useState(false);
   const [editId, setEditId] = useState(null);
-  const emptyForm = { name:"", color:"#FFB347", note:"", ingredients:[{name:"",cubeCount:1}], dishId:"", slotMap:{} };
+  const emptyForm = { name:"", color:"#FFB347", note:"", ingredients:[], unitIds:[], dishId:"", slotMap:{} };
   const [form, setForm] = useState(emptyForm);
   const [sortBy, setSortBy] = useState("name_asc");
   const [hideDisabled, setHideDisabled] = useState(false);
@@ -408,8 +423,8 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   const [confirmDel, setConfirmDel] = useState(null); // {id, name}
 
   const openNew = () => { setEditId(null); setForm(emptyForm); setModal(true); };
-  const openEdit = r => { setEditId(r.id); setForm({name:r.name,color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x})),dishId:r.dishId||"",slotMap:r.slotMap||{}}); setModal(true); };
-  const openCopy = r => { setEditId(null); const newIngs=r.ingredients.map(x=>({...x})); setForm({name:r.name+" (복사)",color:r.color,note:r.note||"",ingredients:newIngs,dishId:r.dishId||"",slotMap:rebuildSlotMap(r.slotMap,newIngs)}); setModal(true); };
+  const openEdit = r => { setEditId(r.id); setForm({name:r.name,color:r.color,note:r.note||"",ingredients:r.ingredients.map(x=>({...x})),unitIds:r.unitIds||[],dishId:r.dishId||"",slotMap:r.slotMap||{}}); setModal(true); };
+  const openCopy = r => { setEditId(null); const newIngs=r.ingredients.map(x=>({...x})); setForm({name:r.name+" (복사)",color:r.color,note:r.note||"",ingredients:newIngs,unitIds:r.unitIds||[],dishId:r.dishId||"",slotMap:rebuildSlotMap(r.slotMap,newIngs)}); setModal(true); };
 
   const addIng = () => setForm(f => ({...f, ingredients:[...f.ingredients, {name:"",cubeCount:1}]}));
   const delIng = i => setForm(f => {
@@ -428,9 +443,9 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
     if (!form.name || !ings.length) return;
     const cleanSlotMap = rebuildSlotMap(form.slotMap, ings);
     if (editId) {
-      setRecipes(rs => rs.map(r => r.id===editId ? {...r,name:form.name,color:form.color,note:form.note,ingredients:ings,dishId:form.dishId,slotMap:cleanSlotMap,updatedAt:todayStr()} : r));
+      setRecipes(rs => rs.map(r => r.id===editId ? {...r,name:form.name,color:form.color,note:form.note,ingredients:ings,unitIds:form.unitIds||[],dishId:form.dishId,slotMap:cleanSlotMap,updatedAt:todayStr()} : r));
     } else {
-      setRecipes(rs => [...rs, {id:uid(),name:form.name,color:form.color,note:form.note,ingredients:ings,dishId:form.dishId,slotMap:cleanSlotMap,updatedAt:todayStr()}]);
+      setRecipes(rs => [...rs, {id:uid(),name:form.name,color:form.color,note:form.note,ingredients:ings,unitIds:form.unitIds||[],dishId:form.dishId,slotMap:cleanSlotMap,updatedAt:todayStr()}]);
     }
     setModal(false);
   };
@@ -438,8 +453,8 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
   const sorted = [...recipes].sort((a,b) => {
     if (favOnly) { if(b.favorite&&!a.favorite) return 1; if(a.favorite&&!b.favorite) return -1; }
     if (sortBy==="fav") { if(b.favorite&&!a.favorite) return 1; if(a.favorite&&!b.favorite) return -1; return a.name.localeCompare(b.name,"ko"); }
-    if (sortBy==="vol_desc") return cubeVolume(b,cubes)-cubeVolume(a,cubes);
-    if (sortBy==="vol_asc")  return cubeVolume(a,cubes)-cubeVolume(b,cubes);
+    if (sortBy==="vol_desc") return cubeVolume(b,cubes,unitRecipes)-cubeVolume(a,cubes,unitRecipes);
+    if (sortBy==="vol_asc")  return cubeVolume(a,cubes,unitRecipes)-cubeVolume(b,cubes,unitRecipes);
     if (sortBy==="name_asc") return a.name.localeCompare(b.name,"ko");
     if (sortBy==="name_desc") return b.name.localeCompare(a.name,"ko");
     return 0;
@@ -492,7 +507,7 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         {sorted.map(r => {
           const st = recipeStatus[r.id] || {disabled:false,outOfStock:[]};
-          const vol = cubeVolume(r, cubes);
+          const vol = cubeVolume(r, cubes, unitRecipes);
           const totalC = r.ingredients.reduce((s,x)=>s+(Number(x.cubeCount)||0),0);
           return(
             <div key={r.id} style={{background:st.disabled?"#fdf5f5":r.favorite?"#fffde7":"#fff",borderRadius:16,padding:16,borderLeft:"4px solid "+(st.disabled?"#ffb3b3":r.color),boxShadow:"0 2px 12px rgba(0,0,0,0.04)",position:"relative",overflow:"hidden"}}>
@@ -504,6 +519,16 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
                     <span style={{background:(st.disabled?"#ddd":r.color)+"22",border:"1px solid "+(st.disabled?"#ddd":r.color)+"66",borderRadius:20,padding:"1px 8px",fontSize:11,color:st.disabled?"#bbb":"#555",fontWeight:600}}>🧊 {totalC}개</span>
                     {vol>0 && <span style={{background:st.disabled?"#f5f5f5":"#e8f8f0",border:"1px solid "+(st.disabled?"#ddd":"#ade"),borderRadius:20,padding:"1px 8px",fontSize:11,color:st.disabled?"#bbb":"#4a9",fontWeight:600}}>💧 {vol}g</span>}
                   </div>
+                  {/* 유닛 레시피 표시 */}
+                  {(r.unitIds||[]).length > 0 && (
+                    <div style={{marginBottom:6,display:"flex",flexWrap:"wrap",gap:4}}>
+                      {(r.unitIds||[]).map(uId=>{
+                        const u = (unitRecipes||[]).find(x=>x.id===uId);
+                        if(!u) return null;
+                        return <span key={uId} style={{background:u.color+"22",border:"1.5px solid "+u.color+"88",borderRadius:20,padding:"2px 8px",fontSize:11,fontWeight:600,color:"#444"}}>🍱 {u.name}</span>;
+                      })}
+                    </div>
+                  )}
                   <div style={{marginBottom:4}}>
                     {r.ingredients.map(ing => {
                       const oos = st.outOfStock.includes(ing.name);
@@ -551,9 +576,66 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock }) 
             ))}
           </div>
         </div>
+        {/* 유닛 레시피 선택 섹션 */}
+        {unitRecipes && unitRecipes.length > 0 && (
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:12,color:"#888",marginBottom:8,fontWeight:600}}>🍱 유닛 레시피 구성</div>
+            {/* 선택된 유닛 목록 */}
+            {(form.unitIds||[]).length > 0 && (
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+                {(form.unitIds||[]).map(uId=>{
+                  const u = unitRecipes.find(x=>x.id===uId);
+                  if(!u) return null;
+                  return(
+                    <div key={uId} style={{display:"flex",alignItems:"center",gap:4,background:u.color+"22",
+                      border:"1.5px solid "+u.color+"88",borderRadius:20,padding:"3px 10px",fontSize:12}}>
+                      <span style={{fontWeight:600,color:"#333"}}>{u.name}</span>
+                      <span style={{fontSize:10,color:"#888"}}>({u.type})</span>
+                      <button onClick={()=>setForm(f=>({...f,unitIds:(f.unitIds||[]).filter(x=>x!==uId)}))}
+                        style={{background:"none",border:"none",cursor:"pointer",color:"#aaa",fontSize:13,padding:"0 2px",lineHeight:1}}>✕</button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* 유닛 추가 드롭다운 */}
+            <select onChange={e=>{
+              const val = e.target.value;
+              if(!val) return;
+              if(!(form.unitIds||[]).includes(val)) {
+                setForm(f=>({...f, unitIds:[...(f.unitIds||[]), val]}));
+              }
+              e.target.value = "";
+            }}
+              style={{width:"100%",padding:"9px 12px",border:"1.5px solid #e8e8e8",borderRadius:12,
+                fontSize:13,outline:"none",background:"#fafafa",cursor:"pointer"}}>
+              <option value="">+ 유닛 레시피 추가...</option>
+              {["밥","국","반찬","소스","기타"].map(type=>{
+                const filtered = unitRecipes.filter(u=>u.type===type && !(form.unitIds||[]).includes(u.id));
+                if(filtered.length===0) return null;
+                return(
+                  <optgroup key={type} label={type}>
+                    {filtered.map(u=>(
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+            </select>
+            {(form.unitIds||[]).length > 0 && (
+              <div style={{fontSize:11,color:"#7a9",marginTop:6}}>
+                ✅ 총 {(form.unitIds||[]).reduce((s,uId)=>{
+                  const u=unitRecipes.find(x=>x.id===uId);
+                  return s+(u?u.ingredients.reduce((s2,i)=>s2+(Number(i.cubeCount)||0),0):0);
+                },0)}개 큐브 사용
+              </div>
+            )}
+          </div>
+        )}
+        {/* 추가 큐브 재료 섹션 */}
         <div style={{marginBottom:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div style={{fontSize:12,color:"#888"}}>재료 & 큐브 수</div>
+            <div style={{fontSize:12,color:"#888"}}>재료 & 큐브 수 <span style={{fontSize:10,color:"#bbb"}}>(유닛 외 추가 재료)</span></div>
             <button onClick={addIng} style={{background:"#f0f0f0",border:"none",borderRadius:8,padding:"3px 10px",cursor:"pointer",fontSize:12,color:"#666"}}>+ 추가</button>
           </div>
           {form.ingredients.map((ing,i) => (
@@ -2606,6 +2688,8 @@ function App({ user }) {
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.unit).set({value:JSON.stringify(unitRecipes)}); },[unitRecipes, ready]);
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.vacc).set({value:JSON.stringify(vaccData)}); },[vaccData, ready]);
 
+  // unitRecipes를 전역으로 노출 (calcStock 내부에서 접근)
+  window._unitRecipes = unitRecipes;
   const { stock, status } = calcStock(cubes, schedules, recipes);
   const hasEmpty = Object.values(stock).some(v=>v===0);
   const lastUpdated = [...recipes.map(r=>r.updatedAt||""), ...cubes.map(c=>c.updatedAt||"")].filter(Boolean).sort().reverse()[0] || null;
@@ -2623,7 +2707,7 @@ function App({ user }) {
   if (!ready) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",color:"#aaa",fontSize:16}}>로딩 중...</div>;
 
   const TABS = [
-    { label:"🍳 메인", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock} /> },
+    { label:"🍳 메인", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock} unitRecipes={unitRecipes} /> },
     { label:"📅 스케줄", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} vaccData={vaccData} stock={stock} unitRecipes={unitRecipes} /> },
     { label:"🍱 유닛", el:<UnitRecipeTab unitRecipes={unitRecipes} setUnitRecipes={setUnitRecipes} cubes={cubes} stock={stock} categories={categories} /> },
     { label:"🧊 큐브",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} makingIds={makingIds} setMakingIds={setMakingIds} /> },
