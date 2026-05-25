@@ -692,11 +692,9 @@ function RecipeTab({ recipes, setRecipes, cubes, recipeStatus, dishes, stock, un
                                     ? (unitRecipes.find(u=>u.id===(form.slotUnits||{})[slot])?.color||"#fff")+"33"
                                     : "#fafafa",cursor:"pointer"}}>
                                 <option value="">유닛 없음</option>
-                                {(form.unitIds||[]).map((uId,uidx)=>{
-                                  const u = unitRecipes.find(x=>x.id===uId);
-                                  if(!u) return null;
-                                  return <option key={uidx} value={uId}>{u.type} {u.name}</option>;
-                                })}
+                                {(unitRecipes||[]).map((u)=>(
+                                  <option key={u.id} value={u.id}>{u.type} {u.name}</option>
+                                ))}
                               </select>
                               {(form.slotUnits||{})[slot] && (()=>{
                                 const su = unitRecipes.find(u=>u.id===(form.slotUnits||{})[slot]);
