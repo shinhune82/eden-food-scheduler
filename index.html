@@ -1212,7 +1212,36 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         {/* 직접 구성 모드: 큐브 선택 UI */}
         {isCustomMode && (
           <div style={{marginBottom:14}}>
-            {/* 식판 칸 배치 */}
+{selRec && (
+          <div style={{marginBottom:12,position:"relative"}}>
+            <div style={{fontSize:12,color:"#888",marginBottom:5}}>식기 <span style={{fontSize:10,color:"#aaa"}}>(레시피 기본값, 변경 가능)</span></div>
+            <div onClick={()=>{setDdrop(o=>!o);setRdrop(false);}}
+              style={{padding:"10px 14px",border:"1.5px solid #e8e8e8",borderRadius:12,cursor:"pointer",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              {selDish ? (
+                <span style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:16}}>{selDish.icon}</span>
+                  <span style={{fontWeight:600,fontSize:13,color:"#333"}}>{selDish.name}</span>
+                </span>
+              ) : <span style={{color:"#bbb",fontSize:13}}>식기 없음</span>}
+              <span style={{color:"#aaa"}}>{ddrop?"▲":"▼"}</span>
+            </div>
+            {ddrop && (
+              <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:200,background:"#fff",border:"1.5px solid #e8e8e8",borderRadius:12,boxShadow:"0 8px 24px rgba(0,0,0,0.1)",overflow:"hidden",marginTop:4}}>
+                {dishes.map(d=>(
+                  <div key={d.id} onClick={e=>{e.stopPropagation();pickDish(d.id);}}
+                    style={{padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,
+                      background:form.dishId===d.id?"#e8f8f0":"#fff",borderBottom:"1px solid #f5f5f5"}}>
+                    <span style={{fontSize:18}}>{d.icon}</span>
+                    <span style={{fontSize:13,fontWeight:form.dishId===d.id?700:400,color:"#333"}}>{d.name}</span>
+                    <span style={{fontSize:11,color:"#aaa",marginLeft:"auto"}}>{d.slots.join(" · ")}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <Field label="메모" value={form.memo} onChange={v=>setForm(f=>({...f,memo:v}))} placeholder="잘 먹음, 거부감 등..." />            {/* 식판 칸 배치 */}
             {selDish && ((form.customUnits||[]).length>0 || form.customIngredients.length>0) && (
               <div style={{marginBottom:12}}>
                 <div style={{fontSize:12,color:"#4a9",fontWeight:700,marginBottom:6}}>🍽️ 식판 칸 배치</div>
@@ -1407,36 +1436,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
           </div>
         )}
 
-        {selRec && (
-          <div style={{marginBottom:12,position:"relative"}}>
-            <div style={{fontSize:12,color:"#888",marginBottom:5}}>식기 <span style={{fontSize:10,color:"#aaa"}}>(레시피 기본값, 변경 가능)</span></div>
-            <div onClick={()=>{setDdrop(o=>!o);setRdrop(false);}}
-              style={{padding:"10px 14px",border:"1.5px solid #e8e8e8",borderRadius:12,cursor:"pointer",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              {selDish ? (
-                <span style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:16}}>{selDish.icon}</span>
-                  <span style={{fontWeight:600,fontSize:13,color:"#333"}}>{selDish.name}</span>
-                </span>
-              ) : <span style={{color:"#bbb",fontSize:13}}>식기 없음</span>}
-              <span style={{color:"#aaa"}}>{ddrop?"▲":"▼"}</span>
-            </div>
-            {ddrop && (
-              <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:200,background:"#fff",border:"1.5px solid #e8e8e8",borderRadius:12,boxShadow:"0 8px 24px rgba(0,0,0,0.1)",overflow:"hidden",marginTop:4}}>
-                {dishes.map(d=>(
-                  <div key={d.id} onClick={e=>{e.stopPropagation();pickDish(d.id);}}
-                    style={{padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,
-                      background:form.dishId===d.id?"#e8f8f0":"#fff",borderBottom:"1px solid #f5f5f5"}}>
-                    <span style={{fontSize:18}}>{d.icon}</span>
-                    <span style={{fontSize:13,fontWeight:form.dishId===d.id?700:400,color:"#333"}}>{d.name}</span>
-                    <span style={{fontSize:11,color:"#aaa",marginLeft:"auto"}}>{d.slots.join(" · ")}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        <Field label="메모" value={form.memo} onChange={v=>setForm(f=>({...f,memo:v}))} placeholder="잘 먹음, 거부감 등..." />
+        
         {selRec && !isCustomMode && (
           <div style={{marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
