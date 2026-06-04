@@ -784,8 +784,23 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
     const defSlots = defRec && defDishObj
       ? remapSlotsToDish(rawSlots, defDishObj.slots, defRec.ingredients)
       : (defRec ? rebuildSlotMap(rawSlots, defRec.ingredients) : rawSlots);
+    const isExCustom = rId === "__custom__";
     setForm(ex
-      ? {recipeId:nowDisabled?"":rId,dishId:defDish,amount:ex.amount||"",memo:ex.memo||"",checked:ex.checked||[],slots:defSlots}
+      ? {
+          recipeId: nowDisabled?"":rId,
+          dishId: defDish,
+          amount: ex.amount||"",
+          memo: ex.memo||"",
+          checked: ex.checked||[],
+          slots: defSlots,
+          slotUnits: ex.slotUnits||{},
+          // 직접구성 복원
+          customMode: isExCustom,
+          customIngredients: isExCustom ? (ex.customIngredients||[]) : [],
+          customUnits: isExCustom ? (ex.customUnits||[]) : [],
+          customSlotUnits: isExCustom ? (ex.slotUnits||{}) : {},
+          customSlotIngredients: isExCustom ? (ex.slots||{}) : {},
+        }
       : {recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[],customUnits:[],customSlotUnits:{},customSlotIngredients:{},slotUnits:{}}
     );
     setRdrop(false); setDdrop(false); setEditSlots(false);
@@ -821,6 +836,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
     if(isCustomMode) {
       entryData.slotUnits = form.customSlotUnits||{};
       entryData.slots = form.customSlotIngredients||{};
+      entryData.customIngredients = form.customIngredients||[];
+      entryData.customUnits = form.customUnits||[];
     }
     setSchedules(ss=>[...ss.filter(s=>!(s.date===target.date&&s.meal===target.meal)), {id:uid(),date:target.date,meal:target.meal,...entryData}]);
     setModal(false);
@@ -850,15 +867,15 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
 
   const isCustomMode = form.recipeId === "__custom__";
   const customUnitIngredients = isCustomMode
-    ? (form.customUnits||[]).flatMap(uId=>{
+    ? ((form.customUnits||[]).flatMap(uId=>{
         const u=(unitRecipes||[]).find(x=>x.id===uId);
-        return u ? u.ingredients : [];
-      })
+        return u ? (u.ingredients||[]) : [];
+      }))
     : [];
   const customRecipe = isCustomMode ? {
     id:"__custom__", name:"직접 구성", color:"#7BC67E",
     ingredients: [
-      ...form.customIngredients.map(ci=>({name:ci.name, cubeCount:ci.count})),
+      ...(form.customIngredients||[]).map(ci=>({name:ci.name, cubeCount:ci.count})),
       ...customUnitIngredients,
     ]
   } : null;
@@ -1347,7 +1364,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
             )}
             <div style={{fontSize:12,color:"#4a9",fontWeight:700,marginBottom:8}}>✏️ 재고 있는 큐브 선택</div>
             {/* 영양 균형 현황 */}
-            {form.customIngredients.length > 0 && (()=>{
+            {(form.customIngredients||[]).length > 0 && (()=>{
               const catCount = {};
               form.customIngredients.forEach(ci=>{
                 const cube = cubes.find(c=>c.ingredient===ci.name);
