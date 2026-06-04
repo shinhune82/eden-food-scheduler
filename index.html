@@ -995,7 +995,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 const vol = rec ? cubeVolume(rec,cubes,unitRecipes) : 0;
                 const entSlotTokens = ent && ent.slots ? Object.values(ent.slots).flat() : [];
                 const entChecked = ent && ent.checked ? ent.checked : [];
-                const entTokens = entSlotTokens.length>0 ? entSlotTokens : (rec ? ingredientsToTokens(rec.ingredients).map(t=>t.tokenKey) : []);
+                const entTokens = entSlotTokens.length>0 ? entSlotTokens : (rec ? ingredientsToTokens(rec.id==="__custom__" ? [] : rec.ingredients).map(t=>t.tokenKey) : []);
                 const checkedInTokens = entTokens.filter(tk=>entChecked.includes(tk));
                 const allDone = entTokens.length>0 && checkedInTokens.length===entTokens.length;
                 const partDone = entTokens.length>0 && checkedInTokens.length>0 && !allDone;
@@ -1052,16 +1052,26 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         const dis = rec && rec.id!=="__custom__" && (recipeStatus[rec.id]||{}).disabled;
         const dish = ent ? dishes.find(d=>d.id===ent.dishId) : null;
         // ★ 버그 수정: 일별 뷰에서도 remapSlotsToDish 적용
-        const rawSlots = ent && ent.slots && Object.values(ent.slots).flat().length>0 ? ent.slots : (rec && rec.slotMap ? rec.slotMap : {});
-        const slots = rec && dish
-          ? remapSlotsToDish(rawSlots, dish.slots, rec.ingredients)
-          : (rec ? rebuildSlotMap(rawSlots, rec ? rec.ingredients : []) : rawSlots);
+        // 직접구성 모드: 실제 재료 계산
+        const customIngList = (ent && ent.recipeId==="__custom__")
+          ? [
+              ...(ent.customIngredients||[]).map(ci=>({name:ci.name,cubeCount:ci.count})),
+              ...(ent.customUnits||[]).flatMap(uId=>{
+                const u=(unitRecipes||[]).find(x=>x.id===uId);
+                return u ? (u.ingredients||[]) : [];
+              })
+            ]
+          : null;
+        // rec에 실제 재료 주입 (직접구성)
+        const recWithIngs = rec && rec.id==="__custom__"
+          ? {...rec, ingredients: customIngList||[]}
+          : rec;
+        const rawSlots = ent && ent.slots && Object.values(ent.slots).flat().length>0 ? ent.slots : (recWithIngs && recWithIngs.slotMap ? recWithIngs.slotMap : {});
+        const slots = recWithIngs && dish
+          ? remapSlotsToDish(rawSlots, dish.slots, recWithIngs.ingredients)
+          : (recWithIngs ? rebuildSlotMap(rawSlots, recWithIngs ? recWithIngs.ingredients : []) : rawSlots);
         const hasSlots = dish && dish.slots && dish.slots.length>0;
-        // 직접 구성 모드: ent에 저장된 customIngredients 사용
-        const customIngs = ent && ent.recipeId==="__custom__" && ent.customIngredients
-          ? ent.customIngredients.map(ci=>({name:ci.name,cubeCount:ci.count}))
-          : [];
-        const allIngNames = rec ? (rec.id==="__custom__" ? customIngs.map(i=>i.name) : rec.ingredients.map(i=>i.name)) : [];
+        const allIngNames = recWithIngs ? recWithIngs.ingredients.map(i=>i.name) : [];
         const checked = ent && ent.checked ? ent.checked : [];
         const toggleDayCheck = (tokenKey) => {
           const newChecked = checked.includes(tokenKey) ? checked.filter(x=>x!==tokenKey) : [...checked,tokenKey];
@@ -1070,7 +1080,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         const slotTokensList = Object.values(slots).flat();
         const allTokens = slotTokensList.length>0
           ? slotTokensList
-          : (rec ? ingredientsToTokens(rec.ingredients).map(t=>t.tokenKey) : []);
+          : (recWithIngs ? ingredientsToTokens(recWithIngs.ingredients).map(t=>t.tokenKey) : []);
         const totalTokens = allTokens.length;
         const checkedInSlot = allTokens.filter(tk=>checked.includes(tk));
         const isAllChecked = totalTokens > 0 && checkedInSlot.length === totalTokens;
@@ -1105,7 +1115,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                     const slotTokens = (slots[slot]||[]);
                     const tokensToShow = slotTokens.map(tk=>{
                       const ingName = tk.split("__g")[0];
-                      const ing = rec.ingredients.find(x=>x.name===ingName);
+                      const ing = recWithIngs.ingredients.find(x=>x.name===ingName);
                       return ing ? {tokenKey:tk, ingName} : null;
                     }).filter(Boolean);
                     if(tokensToShow.length===0) return null;
@@ -1144,8 +1154,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                   <div>
                     <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:6}}>재료 체크</div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                      {ingredientsToTokens(rec.ingredients).map(({tokenKey,ingName})=>{
-                        const allToks = ingredientsToTokens(rec.ingredients);
+                      {ingredientsToTokens(recWithIngs.ingredients).map(({tokenKey,ingName})=>{
+                        const allToks = ingredientsToTokens(recWithIngs.ingredients);
                         const label = tokenLabel(tokenKey, allToks);
                         return(
                           <label key={tokenKey} onClick={e=>e.stopPropagation()}
