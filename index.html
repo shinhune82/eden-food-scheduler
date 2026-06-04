@@ -1110,10 +1110,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
             )}
             {ent && rec && (
               <div style={{padding:"10px 16px"}}>
-                {/* 직접구성: 유닛 이름 + 슬롯 배치 표시 */}
                 {rec.id==="__custom__" ? (
                   <div>
-                    {/* 선택된 유닛 표시 */}
                     {(ent.customUnits||[]).length>0 && (
                       <div style={{marginBottom:8,display:"flex",flexWrap:"wrap",gap:6}}>
                         {(ent.customUnits||[]).map((uId,uidx)=>{
@@ -1128,125 +1126,125 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                         })}
                       </div>
                     )}
-                    {/* 슬롯 배치 표시 */}
-                    {hasSlots && Object.values(slots).flat().length>0 ? (
-                      dish.slots.map((slot,si)=>{
-                        const slotTokens = (slots[slot]||[]);
-                        const tokensToShow = slotTokens.map(tk=>{
-                          const ingName = tk.split("__g")[0];
-                          return {tokenKey:tk, ingName};
-                        }).filter(Boolean);
-                        if(tokensToShow.length===0) return null;
-                        const allDaySlotTokenObjs2 = Object.values(slots).flat().map(tk=>({tokenKey:tk,ingName:tk.split("__g")[0]}));
-                        const slotAllChecked2 = tokensToShow.every(t=>checked.includes(t.tokenKey));
-                        return(
-                          <div key={slot} style={{marginBottom:8,borderRadius:12,border:"1.5px solid "+(slotAllChecked2?"#7BC67E":"#e0e0e0"),overflow:"hidden"}}>
-                            <div style={{background:slotAllChecked2?"#e8f8f0":"#f5f5f5",padding:"5px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                              <span style={{fontSize:11,fontWeight:700,color:"#555"}}>📌 {slot}</span>
-                              <span style={{fontSize:11,color:slotAllChecked2?"#4a9":"#aaa",fontWeight:600}}>
-                                {tokensToShow.filter(t=>checked.includes(t.tokenKey)).length}/{tokensToShow.length}
-                              </span>
+                    {hasSlots && Object.values(slots).flat().length>0
+                      ? dish.slots.map((slot,si)=>{
+                          const slotTokens = (slots[slot]||[]);
+                          const tokensToShow = slotTokens.map(tk=>{
+                            const ingName = tk.split("__g")[0];
+                            return {tokenKey:tk, ingName};
+                          }).filter(Boolean);
+                          if(tokensToShow.length===0) return null;
+                          const allDaySlotTokenObjs2 = Object.values(slots).flat().map(tk=>({tokenKey:tk,ingName:tk.split("__g")[0]}));
+                          const slotAllChecked2 = tokensToShow.every(t=>checked.includes(t.tokenKey));
+                          return(
+                            <div key={slot} style={{marginBottom:8,borderRadius:12,border:"1.5px solid "+(slotAllChecked2?"#7BC67E":"#e0e0e0"),overflow:"hidden"}}>
+                              <div style={{background:slotAllChecked2?"#e8f8f0":"#f5f5f5",padding:"5px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                <span style={{fontSize:11,fontWeight:700,color:"#555"}}>📌 {slot}</span>
+                                <span style={{fontSize:11,color:slotAllChecked2?"#4a9":"#aaa",fontWeight:600}}>
+                                  {tokensToShow.filter(t=>checked.includes(t.tokenKey)).length}/{tokensToShow.length}
+                                </span>
+                              </div>
+                              <div style={{padding:"8px 10px",display:"flex",flexWrap:"wrap",gap:6}}>
+                                {tokensToShow.map(({tokenKey,ingName})=>(
+                                  <label key={tokenKey} onClick={e=>e.stopPropagation()}
+                                    style={{display:"flex",alignItems:"center",gap:4,
+                                      background:checked.includes(tokenKey)?"#e8f8f0":"#fff",
+                                      border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),
+                                      borderRadius:20,padding:"4px 10px",cursor:"pointer",fontSize:12}}>
+                                    <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)}
+                                      style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
+                                    {tokenLabel(tokenKey, allDaySlotTokenObjs2)}
+                                  </label>
+                                ))}
+                              </div>
                             </div>
-                            <div style={{padding:"8px 10px",display:"flex",flexWrap:"wrap",gap:6}}>
-                              {tokensToShow.map(({tokenKey,ingName})=>(
+                          );
+                        })
+                      : (ent.customIngredients||[]).length>0
+                        ? <div>
+                            <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:6}}>재료 체크</div>
+                            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                              {ingredientsToTokens((ent.customIngredients||[]).map(ci=>({name:ci.name,cubeCount:ci.count}))).map(({tokenKey,ingName})=>(
                                 <label key={tokenKey} onClick={e=>e.stopPropagation()}
                                   style={{display:"flex",alignItems:"center",gap:4,
-                                    background:checked.includes(tokenKey)?"#e8f8f0":"#fff",
+                                    background:checked.includes(tokenKey)?"#e8f8f0":"#f5f5f5",
                                     border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),
-                                    borderRadius:20,padding:"4px 10px",cursor:"pointer",fontSize:12}}>
+                                    borderRadius:20,padding:"3px 10px",cursor:"pointer",fontSize:12}}>
                                   <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)}
                                     style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
-                                  {tokenLabel(tokenKey, allDaySlotTokenObjs2)}
+                                  {ingName}
                                 </label>
                               ))}
                             </div>
                           </div>
-                        );
-                      })
-                    ) : (ent.customIngredients||[]).length>0 ? (
-                      <div>
-                        <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:6}}>재료 체크</div>
-                        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                          {ingredientsToTokens((ent.customIngredients||[]).map(ci=>({name:ci.name,cubeCount:ci.count}))).map(({tokenKey,ingName})=>(
-                            <label key={tokenKey} onClick={e=>e.stopPropagation()}
-                              style={{display:"flex",alignItems:"center",gap:4,
-                                background:checked.includes(tokenKey)?"#e8f8f0":"#f5f5f5",
-                                border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),
-                                borderRadius:20,padding:"3px 10px",cursor:"pointer",fontSize:12}}>
-                              <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)}
-                                style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
-                              {ingName}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
+                        : null
+                    }
                   </div>
                 ) : (
-                <div>
-                {hasSlots && Object.values(slots).flat().length>0 ? (
-                  dish.slots.map((slot,si)=>{
-                    const slotTokens = (slots[slot]||[]);
-                    const tokensToShow = slotTokens.map(tk=>{
-                      const ingName = tk.split("__g")[0];
-                      const ing = recWithIngs.ingredients.find(x=>x.name===ingName);
-                      return ing ? {tokenKey:tk, ingName} : null;
-                    }).filter(Boolean);
-                    if(tokensToShow.length===0) return null;
-                    const allDaySlotTokenObjs = Object.values(slots).flat().map(tk=>({tokenKey:tk,ingName:tk.split("__g")[0]}));
-                    const slotAllChecked = tokensToShow.every(t=>checked.includes(t.tokenKey));
-                    return(
-                      <div key={slot} style={{marginBottom:8,borderRadius:12,border:"1.5px solid "+(slotAllChecked?"#7BC67E":"#e0e0e0"),overflow:"hidden"}}>
-                        <div style={{background:slotAllChecked?"#e8f8f0":"#f5f5f5",padding:"5px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span style={{fontSize:11,fontWeight:700,color:"#555"}}>📌 {slot}</span>
-                          {(()=>{
-                            const slotUnitId = ent.slotUnits && ent.slotUnits[slot];
-                            const slotUnit = slotUnitId && unitRecipes ? unitRecipes.find(u=>u.id===slotUnitId) : null;
-                            if(!slotUnit) return null;
-                            return <span style={{fontSize:10,background:slotUnit.color+"33",borderRadius:10,padding:"1px 6px",color:"#555",fontWeight:600}}>{slotUnit.name}</span>;
-                          })()}
-                          <span style={{fontSize:11,color:slotAllChecked?"#4a9":"#aaa",fontWeight:600}}>
-                            {tokensToShow.filter(t=>checked.includes(t.tokenKey)).length}/{tokensToShow.length}
-                          </span>
-                        </div>
-                        <div style={{padding:"8px 10px",display:"flex",flexWrap:"wrap",gap:6}}>
-                          {tokensToShow.map(({tokenKey,ingName})=>(
-                            <label key={tokenKey} onClick={e=>e.stopPropagation()}
-                              style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(tokenKey)?"#e8f8f0":"#fff",
-                                border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),
-                                borderRadius:20,padding:"4px 10px",cursor:"pointer",fontSize:12}}>
-                              <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)}
-                                style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
-                              {tokenLabel(tokenKey, allDaySlotTokenObjs)}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : allIngNames.length>0 ? (
                   <div>
-                    <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:6}}>재료 체크</div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                      {ingredientsToTokens(recWithIngs.ingredients).map(({tokenKey,ingName})=>{
-                        const allToks = ingredientsToTokens(recWithIngs.ingredients);
-                        const label = tokenLabel(tokenKey, allToks);
-                        return(
-                          <label key={tokenKey} onClick={e=>e.stopPropagation()}
-                            style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(tokenKey)?"#e8f8f0":"#f5f5f5",
-                              border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),
-                              borderRadius:20,padding:"3px 10px",cursor:"pointer",fontSize:12}}>
-                            <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)}
-                              style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
-                            {label}
-                          </label>
-                        );
-                      })}
-                    </div>
+                    {hasSlots && Object.values(slots).flat().length>0
+                      ? dish.slots.map((slot,si)=>{
+                          const slotTokens = (slots[slot]||[]);
+                          const tokensToShow = slotTokens.map(tk=>{
+                            const ingName = tk.split("__g")[0];
+                            const ing = recWithIngs ? recWithIngs.ingredients.find(x=>x.name===ingName) : null;
+                            return ing ? {tokenKey:tk, ingName} : null;
+                          }).filter(Boolean);
+                          if(tokensToShow.length===0) return null;
+                          const allDaySlotTokenObjs = Object.values(slots).flat().map(tk=>({tokenKey:tk,ingName:tk.split("__g")[0]}));
+                          const slotAllChecked = tokensToShow.every(t=>checked.includes(t.tokenKey));
+                          return(
+                            <div key={slot} style={{marginBottom:8,borderRadius:12,border:"1.5px solid "+(slotAllChecked?"#7BC67E":"#e0e0e0"),overflow:"hidden"}}>
+                              <div style={{background:slotAllChecked?"#e8f8f0":"#f5f5f5",padding:"5px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                <span style={{fontSize:11,fontWeight:700,color:"#555"}}>📌 {slot}</span>
+                                {(()=>{
+                                  const slotUnitId = ent.slotUnits && ent.slotUnits[slot];
+                                  const slotUnit = slotUnitId && unitRecipes ? unitRecipes.find(u=>u.id===slotUnitId) : null;
+                                  if(!slotUnit) return null;
+                                  return <span style={{fontSize:10,background:slotUnit.color+"33",borderRadius:10,padding:"1px 6px",color:"#555",fontWeight:600}}>{slotUnit.name}</span>;
+                                })()}
+                                <span style={{fontSize:11,color:slotAllChecked?"#4a9":"#aaa",fontWeight:600}}>
+                                  {tokensToShow.filter(t=>checked.includes(t.tokenKey)).length}/{tokensToShow.length}
+                                </span>
+                              </div>
+                              <div style={{padding:"8px 10px",display:"flex",flexWrap:"wrap",gap:6}}>
+                                {tokensToShow.map(({tokenKey,ingName})=>(
+                                  <label key={tokenKey} onClick={e=>e.stopPropagation()}
+                                    style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(tokenKey)?"#e8f8f0":"#fff",
+                                      border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),
+                                      borderRadius:20,padding:"4px 10px",cursor:"pointer",fontSize:12}}>
+                                    <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)}
+                                      style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
+                                    {tokenLabel(tokenKey, allDaySlotTokenObjs)}
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })
+                      : allIngNames.length>0
+                        ? <div>
+                            <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:6}}>재료 체크</div>
+                            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                              {ingredientsToTokens(recWithIngs.ingredients).map(({tokenKey,ingName})=>{
+                                const allToks = ingredientsToTokens(recWithIngs.ingredients);
+                                const label = tokenLabel(tokenKey, allToks);
+                                return(
+                                  <label key={tokenKey} onClick={e=>e.stopPropagation()}
+                                    style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(tokenKey)?"#e8f8f0":"#f5f5f5",
+                                      border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),
+                                      borderRadius:20,padding:"3px 10px",cursor:"pointer",fontSize:12}}>
+                                    <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)}
+                                      style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
+                                    {label}
+                                  </label>
+                                );
+                              })}
+                                     </div>
+                        : null
+                    }
                   </div>
-                ) : null}
                 )}
-                </div>
               </div>
             )}
           </div>
