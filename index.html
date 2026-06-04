@@ -1183,6 +1183,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                     ) : null}
                   </div>
                 ) : (
+                <div>
                 {hasSlots && Object.values(slots).flat().length>0 ? (
                   dish.slots.map((slot,si)=>{
                     const slotTokens = (slots[slot]||[]);
@@ -1245,6 +1246,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                   </div>
                 ) : null}
                 )}
+                </div>
               </div>
             )}
           </div>
