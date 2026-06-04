@@ -776,7 +776,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
     const rId = ex ? (ex.recipeId||"") : "";
     const nowDisabled = rId && (recipeStatus[rId]||{}).disabled;
     setTarget({date,meal});
-    const defRec = rId && !nowDisabled ? recipes.find(r=>r.id===rId) : null;
+    const defRec = rId && !nowDisabled ? (rId==="__custom__" ? {id:"__custom__",name:"직접 구성",color:"#7BC67E",ingredients:[],unitIds:[]} : recipes.find(r=>r.id===rId)) : null;
     const rawSlots = ex && ex.slots && Object.keys(ex.slots).length>0 ? ex.slots : (defRec&&defRec.slotMap ? defRec.slotMap : {});
     const defDish  = ex ? (ex.dishId||"") : (defRec&&defRec.dishId ? defRec.dishId : "");
     // ★ 버그 수정: dish 슬롯 키 이름 불일치 보정
@@ -971,9 +971,11 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
               </div>
               {weekDates.map(d => {
                 const ent = getEntry(d, meal);
-                const rec = ent ? recipes.find(r=>r.id===ent.recipeId) : null;
-                const dis = rec && (recipeStatus[rec.id]||{}).disabled;
-                const vol = rec ? cubeVolume(rec,cubes) : 0;
+                const rec = ent ? (ent.recipeId==="__custom__"
+                  ? {id:"__custom__",name:"직접 구성",color:"#7BC67E",ingredients:[],unitIds:[]}
+                  : recipes.find(r=>r.id===ent.recipeId)) : null;
+                const dis = rec && rec.id!=="__custom__" && (recipeStatus[rec.id]||{}).disabled;
+                const vol = rec ? cubeVolume(rec,cubes,unitRecipes) : 0;
                 const entSlotTokens = ent && ent.slots ? Object.values(ent.slots).flat() : [];
                 const entChecked = ent && ent.checked ? ent.checked : [];
                 const entTokens = entSlotTokens.length>0 ? entSlotTokens : (rec ? ingredientsToTokens(rec.ingredients).map(t=>t.tokenKey) : []);
@@ -1008,7 +1010,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                     {rec ? (
                       <div style={{textAlign:"center",width:"100%"}}>
                         {dis && <div style={{fontSize:9,color:"#e55",fontWeight:700}}>🚫재료없음</div>}
-                        <div style={{fontSize:10,fontWeight:700,color:dis?"#c88":"#444",lineHeight:1.3}}>{rec.name}</div>
+                        <div style={{fontSize:10,fontWeight:700,color:dis?"#c88":"#444",lineHeight:1.3}}>{rec.id==="__custom__"?"✏️ 직접구성":rec.name}</div>
                         {vol>0 && <div style={{fontSize:9,color:"#4a9",marginTop:1}}>{vol}g</div>}
                         {allDone && !dis && <div style={{fontSize:9,color:"#4a9",fontWeight:700,marginTop:1}}>✓완료</div>}
                         {partDone && !dis && <div style={{fontSize:9,color:"#f90",fontWeight:700,marginTop:1}}>⚠부족</div>}
@@ -1027,8 +1029,10 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
       <div style={{fontWeight:700,fontSize:14,color:"#333",marginBottom:8}}>{fmtMD(dayView)} 식단</div>
       {MEALS.map(meal=>{
         const ent = getEntry(dayView, meal);
-        const rec = ent ? recipes.find(r=>r.id===ent.recipeId) : null;
-        const dis = rec && (recipeStatus[rec.id]||{}).disabled;
+        const rec = ent ? (ent.recipeId==="__custom__"
+          ? {id:"__custom__",name:"직접 구성",color:"#7BC67E",ingredients:[],unitIds:[]}
+          : recipes.find(r=>r.id===ent.recipeId)) : null;
+        const dis = rec && rec.id!=="__custom__" && (recipeStatus[rec.id]||{}).disabled;
         const dish = ent ? dishes.find(d=>d.id===ent.dishId) : null;
         // ★ 버그 수정: 일별 뷰에서도 remapSlotsToDish 적용
         const rawSlots = ent && ent.slots && Object.values(ent.slots).flat().length>0 ? ent.slots : (rec && rec.slotMap ? rec.slotMap : {});
@@ -1036,7 +1040,11 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
           ? remapSlotsToDish(rawSlots, dish.slots, rec.ingredients)
           : (rec ? rebuildSlotMap(rawSlots, rec ? rec.ingredients : []) : rawSlots);
         const hasSlots = dish && dish.slots && dish.slots.length>0;
-        const allIngNames = rec ? rec.ingredients.map(i=>i.name) : [];
+        // 직접 구성 모드: ent에 저장된 customIngredients 사용
+        const customIngs = ent && ent.recipeId==="__custom__" && ent.customIngredients
+          ? ent.customIngredients.map(ci=>({name:ci.name,cubeCount:ci.count}))
+          : [];
+        const allIngNames = rec ? (rec.id==="__custom__" ? customIngs.map(i=>i.name) : rec.ingredients.map(i=>i.name)) : [];
         const checked = ent && ent.checked ? ent.checked : [];
         const toggleDayCheck = (tokenKey) => {
           const newChecked = checked.includes(tokenKey) ? checked.filter(x=>x!==tokenKey) : [...checked,tokenKey];
@@ -1643,7 +1651,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
             <PillBtn onClick={()=>setSchedConfirmDel(true)} color="#E78F8F" outline small>삭제</PillBtn>
           )}
           <div style={{flex:1}}>
-            <PillBtn onClick={saveEntry} full disabled={!form.recipeId||(!isCustomMode&&(recipeStatus[form.recipeId]||{}).disabled)||(isCustomMode&&form.customIngredients.length===0)}>저장</PillBtn>
+            <PillBtn onClick={saveEntry} full disabled={!form.recipeId||(!isCustomMode&&(recipeStatus[form.recipeId]||{}).disabled)||(isCustomMode&&form.customIngredients.length===0&&(form.customUnits||[]).length===0)}>저장</PillBtn>
           </div>
         </div>
       </Overlay>
