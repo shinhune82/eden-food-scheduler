@@ -147,8 +147,7 @@ function App({ user }) {
         {TABS.map((t,i)=>(
           <button key={i} onClick={()=>setTab(i)}
             style={{flex:1,padding:"12px 2px",border:"none",background:"transparent",cursor:"pointer",fontSize:11,fontWeight:tab===i?700:400,color:tab===i?"#7BC67E":"#999",borderBottom:tab===i?"2.5px solid #7BC67E":"2.5px solid transparent",position:"relative"}}>
-            {t.label}
-            {i===3&&hasEmpty&&<span style={{position:"absolute",top:7,right:"10%",width:7,height:7,borderRadius:"50%",background:"#e55",border:"1.5px solid #fff"}} />}
+            {t.label}        
           </button>
         ))}
       </div>
