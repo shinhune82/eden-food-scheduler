@@ -462,8 +462,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 )}
               </div>
             )}
-
       })}
+
       <Overlay open={modal} onClose={()=>setModal(false)} wide title={target.date ? fmtFull(target.date)+" "+MEAL_ICON[target.meal]+" "+target.meal : ""}>
         <div style={{marginBottom:12,position:"relative"}}>
           <div style={{fontSize:12,color:"#888",marginBottom:5}}>레시피 선택</div>
