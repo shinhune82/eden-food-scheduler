@@ -12,14 +12,34 @@ window.getTodayStr = getTodayStr; // 신규 함수 전역 바인딩
 window.todayStr = getTodayStr;    // 기존 파일(todayStr() 호출 방식)들과의 하위 호환성을 위해 추가 바인딩
 
 // ⚙️ 3. 기존 utils 함수들 및 전역 바인딩
-function ingredientsToTokens(ingredients) {
+function ingredientsToTokens(ingredients, unitIds, unitRecipes) {
   let gi = 0;
-  return ingredients.flatMap(ing =>
-    Array.from({length: Number(ing.cubeCount)||0}, () => {
-      const tokenKey = ing.name + "__g" + gi++;
-      return { tokenKey, ingName: ing.name, ing };
-    })
-  );
+  const tokens = [];
+
+  // 1. 기존 일반 큐브 재료 토큰 생성
+  if (ingredients && ingredients.length > 0) {
+    ingredients.forEach(ing => {
+      const count = Number(ing.cubeCount) || 0;
+      for (let i = 0; i < count; i++) {
+        const tokenKey = ing.name + "__g" + gi++;
+        tokens.push({ tokenKey, ingName: ing.name, ing, type: 'cube' });
+      }
+    });
+  }
+
+  // 2. 🔥 [신규 추가] 유닛 레시피 자체를 하나의 덩어리 토큰으로 생성
+  if (unitIds && unitIds.length > 0 && unitRecipes) {
+    unitIds.forEach(uId => {
+      const u = unitRecipes.find(x => x.id === uId);
+      if (u) {
+        // 유닛 이름 자체를 식판에 배치할 수 있도록 토큰화
+        const tokenKey = u.name + "__g" + gi++;
+        tokens.push({ tokenKey, ingName: u.name, unitData: u, type: 'unit' });
+      }
+    });
+  }
+
+  return tokens;
 }
 window.ingredientsToTokens = ingredientsToTokens;
 
