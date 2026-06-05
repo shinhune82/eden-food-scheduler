@@ -142,10 +142,10 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         <div style={{background:"#fff0f0",border:"1.5px solid #ffb3b3",borderRadius:12,marginBottom:14,overflow:"hidden"}}>
           <div onClick={()=>setBannerOpen(v=>!v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",cursor:"pointer"}}>
             <span style={{fontWeight:700,fontSize:13,color:"#c00"}}>🚫 재료 소진 {disabledCount}개</span>
-            <span style={{fontSize:11,color:"#e55"}}>{bannerOpen ? "\u25B2 닫기":"\u25BC 목록 보기"}</span>
+            <span style={{fontSize:11,color:"#e55"}}>{bannerOpen ? "▲ 닫기":"▼ 목록 보기"}</span>
           </div>
           {bannerOpen && (
-            <div style={{fontSize:11,color:"#e55",padding:"0 14px 10px",lineLineHeight:1.8}}>
+            <div style={{fontSize:11,color:"#e55",padding:"0 14px 10px",lineHeight:1.8}}>
               {recipes.filter(r=>(recipeStatus[r.id]||{}).disabled).map(r=>(
                 <span key={r.id} style={{marginRight:8,display:"inline-block"}}>{r.name} ({(recipeStatus[r.id]||{}).outOfStock.join(", ")} 없음)</span>
               ))}
@@ -242,7 +242,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 const vol = rec ? cubeVolume(rec,cubes,unitRecipes) : 0;
                 const entSlotTokens = ent && ent.slots ? Object.values(ent.slots).flat() : [];
                 const entChecked = ent && ent.checked ? ent.checked : [];
-                const entTokens = entSlotTokens.length>0 ? entSlotTokens : (rec ? ingredientsToTokens(rec.id==="__custom__" ? [] : rec.ingredients).map(t=>t.tokenKey) : []);
+                const entTokens = entSlotTokens.length>0 ? entSlotTokens : (rec ? ingredientsToTokens(rec.id==="__custom__" ? [] : rec.ingredients, rec.id==="__custom__" ? [] : rec.unitIds, unitRecipes).map(t=>t.tokenKey) : []);
                 const checkedInTokens = entTokens.filter(tk=>entChecked.includes(tk));
                 const allDone = entTokens.length>0 && checkedInTokens.length===entTokens.length;
                 const partDone = entTokens.length>0 && checkedInTokens.length>0 && !allDone;
@@ -296,11 +296,17 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
           : null;
         const recWithIngs = rec && rec.id==="__custom__" ? {...rec, ingredients: customIngList||[]} : rec;
         const rawSlots = ent && ent.slots && Object.values(ent.slots).flat().length>0 ? ent.slots : (recWithIngs && recWithIngs.slotMap ? recWithIngs.slotMap : {});
+        
+        // 💡 [수정] 일반 레시피 상세 보기에서도 유닛(unitIds)을 포함한 전체 토큰 맵을 빌드합니다.
+        const currentIngredients = recWithIngs ? (recWithIngs.ingredients || []) : [];
+        const currentUnitIds = recWithIngs ? (recWithIngs.unitIds || []) : [];
+        const parsedTokens = ingredientsToTokens(currentIngredients, currentUnitIds, unitRecipes);
+
         const slots = recWithIngs && dish
-          ? remapSlotsToDish(rawSlots, dish.slots, recWithIngs.ingredients)
-          : (recWithIngs ? rebuildSlotMap(rawSlots, recWithIngs ? recWithIngs.ingredients : []) : rawSlots);
+          ? remapSlotsToDish(rawSlots, dish.slots, currentIngredients)
+          : (recWithIngs ? rebuildSlotMap(rawSlots, currentIngredients) : rawSlots);
         const hasSlots = dish && dish.slots && dish.slots.length>0;
-        const allIngNames = recWithIngs ? recWithIngs.ingredients.map(i=>i.name) : [];
+        const allIngNames = recWithIngs ? currentIngredients.map(i=>i.name) : [];
         const checked = ent && ent.checked ? ent.checked : [];
         
         const toggleDayCheck = (tokenKey) => {
@@ -308,7 +314,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
           setSchedules(ss=>ss.map(s=>s.date===dayView&&s.meal===meal ? {...s,checked:newChecked} : s));
         };
         const slotTokensList = Object.values(slots).flat();
-        const allTokens = slotTokensList.length>0 ? slotTokensList : (recWithIngs ? ingredientsToTokens(recWithIngs.ingredients).map(t=>t.tokenKey) : []);
+        const allTokens = slotTokensList.length>0 ? slotTokensList : parsedTokens.map(t=>t.tokenKey);
         const totalTokens = allTokens.length;
         const checkedInSlot = allTokens.filter(tk=>checked.includes(tk));
         const isAllChecked = totalTokens > 0 && checkedInSlot.length === totalTokens;
@@ -387,13 +393,19 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                   <div>
                     {hasSlots && Object.values(slots).flat().length>0 && dish.slots.map((slot,si)=>{
                       const slotTokens=(slots[slot]||[]);
+                      
+                      // 💡 [수정] 큐브 재료뿐만 아니라 유닛 레시피 명칭도 슬롯 토큰 필터링을 통과하도록 변경합니다.
                       const tokensToShow=slotTokens.map(tk=>{
-                        const ingName=tk.split("__g")[0];
-                        const ing=recWithIngs?recWithIngs.ingredients.find(x=>x.name===ingName):null;
-                        return ing?{tokenKey:tk,ingName}:null;
+                        const nameFromToken=tk.split("__g")[0];
+                        const isCube = currentIngredients.some(x=>x.name===nameFromToken);
+                        const isUnit = currentUnitIds.some(uId=>{
+                          const u = (unitRecipes||[]).find(x=>x.id===uId);
+                          return u && u.name === nameFromToken;
+                        });
+                        return (isCube || isUnit) ? {tokenKey:tk, ingName:nameFromToken} : null;
                       }).filter(Boolean);
+
                       if(tokensToShow.length===0) return null;
-                      const objAll=Object.values(slots).flat().map(tk=>({tokenKey:tk,ingName:tk.split("__g")[0]}));
                       const allChk=tokensToShow.every(t=>checked.includes(t.tokenKey));
                       return(
                         <div key={slot} style={{marginBottom:8,borderRadius:12,border:"1.5px solid "+(allChk?"#7BC67E":"#e0e0e0"),overflow:"hidden"}}>
@@ -411,7 +423,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                             {tokensToShow.map(({tokenKey,ingName})=>(
                               <label key={tokenKey} onClick={e=>e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(tokenKey)?"#e8f8f0":"#fff",border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),borderRadius:20,padding:"4px 10px",cursor:"pointer",fontSize:12}}>
                                 <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)} style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
-                                {tokenLabel(tokenKey,objAll)}
+                                {/* 💡 [수정] 단순 문자열 분리가 아닌, 확장된 parsedTokens 풀을 그대로 넘겨 토큰 라벨을 정확하게 찾아줍니다 */}
+                                {tokenLabel(tokenKey, parsedTokens)}
                               </label>
                             ))}
                           </div>
@@ -422,8 +435,8 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                       <div>
                         <div style={{fontSize:11,fontWeight:700,color:"#888",marginBottom:6}}>재료 체크</div>
                         <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                          {ingredientsToTokens(recWithIngs.ingredients).map(({tokenKey,ingName})=>{
-                            const lbl=tokenLabel(tokenKey,ingredientsToTokens(recWithIngs.ingredients));
+                          {ingredientsToTokens(currentIngredients, currentUnitIds, unitRecipes).map(({tokenKey,ingName})=>{
+                            const lbl=tokenLabel(tokenKey, ingredientsToTokens(currentIngredients, currentUnitIds, unitRecipes));
                             return(
                               <label key={tokenKey} onClick={e=>e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(tokenKey)?"#e8f8f0":"#f5f5f5",border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),borderRadius:20,padding:"3px 10px",cursor:"pointer",fontSize:12}}>
                                 <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)} style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
@@ -477,453 +490,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                       </span>
                     </div>
                   )}
-                  {showFav && <div style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#f9a825",background:"#fffde7",borderBottom:"1px solid #fff9c4"}}>⭐ 즐겨찾기</div>}
+                  {showFav && <div style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#f9a825",background:"#fffide7",borderBottom:"1px solid #fff9c4"}}>⭐ 즐겨찾기</div>}
                   {list.map((r,ri)=>{
-                    const st = recipeStatus[r.id]||{disabled:false,outOfStock:[]};
-                    const vol = cubeVolume(r,cubes);
-                    const totalC = r.ingredients.reduce((s,x)=>s+(Number(x.cubeCount)||0),0);
-                    return(<React.Fragment key={r.id}>
-                      {showAll && ri===favs.length && <div style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#999",background:"#fafafa",borderBottom:"1px solid #f0f0f0"}}>전체 레시피</div>}
-                      <div onClick={e=>{e.stopPropagation();pickRecipe(r.id,recipes);}} style={{padding:"12px 14px",cursor:st.disabled?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:8, background:st.disabled?"#fdf5f5":form.recipeId===r.id?r.color+"22":"#fff", borderBottom:"1px solid #f5f5f5",opacity:st.disabled?0.65:1}}>
-                        <span style={{width:12,height:12,borderRadius:"50%",background:st.disabled?"#ccc":r.color,flexShrink:0}} />
-                        <span style={{flex:1}}>
-                          <span style={{fontWeight:form.recipeId===r.id?700:400,fontSize:14,color:st.disabled?"#aaa":"#333"}}>{st.disabled&&"🚫 "}{r.name}{r.favorite?" ⭐":""}</span>
-                          {st.disabled && <span style={{display:"block",fontSize:10,color:"#e55",marginTop:1}}>재고 없음: {st.outOfStock.join(", ")}</span>}
-                        </span>
-                        {!st.disabled && <span style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
-                          <span style={{fontSize:14,color:"#7a9",fontWeight:700}}>🧊{totalC}개</span>
-                          {vol>0&&<span style={{fontSize:13,color:"#aaa",fontWeight:600}}>💧{vol}g</span>}
-                        </span>}
-                      </div>
-                    </React.Fragment>);
-                  })}
-                </>);
-              })()}
-            </div>
-          )}
-        </div>
-
-        {/* 식기 선택 UI (레시피가 선택되었을 때 상시 노출) */}
-        {selRec && (
-          <div style={{marginBottom:12,position:"relative"}}>
-            <div style={{fontSize:12,color:"#888",marginBottom:5}}>식기 <span style={{fontSize:10,color:"#aaa"}}>(레시피 기본값, 변경 가능)</span></div>
-            <div onClick={()=>{setDdrop(o=>!o);setRdrop(false);}} style={{padding:"10px 14px",border:"1.5px solid #e8e8e8",borderRadius:12,cursor:"pointer",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              {selDish ? (
-                <span style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:16}}>{selDish.icon}</span>
-                  <span style={{fontWeight:600,fontSize:13,color:"#333"}}>{selDish.name}</span>
-                </span>
-              ) : <span style={{color:"#bbb",fontSize:13}}>식기 없음</span>}
-              <span style={{color:"#aaa"}}>{ddrop?"▲":"▼"}</span>
-            </div>
-            {ddrop && (
-              <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:200,background:"#fff",border:"1.5px solid #e8e8e8",borderRadius:12,boxShadow:"0 8px 24px rgba(0,0,0,0.1)",overflow:"hidden",marginTop:4}}>
-                {dishes.map(d=>(
-                  <div key={d.id} onClick={e=>{e.stopPropagation();pickDish(d.id);}} style={{padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10, background:form.dishId===d.id?"#e8f8f0":"#fff",borderBottom:"1px solid #f5f5f5"}}>
-                    <span style={{fontSize:18}}>{d.icon}</span>
-                    <span style={{fontSize:13,fontWeight:form.dishId===d.id?700:400,color:"#333"}}>{d.name}</span>
-                    <span style={{fontSize:11,color:"#aaa",marginLeft:"auto"}}>{d.slots.join(" · ")}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        <Field label="메모" value={form.memo} onChange={v=>setForm(f=>({...f,memo:v}))} placeholder="잘 먹음, 거부감 등..." />
-
-        {/* 직접 구성 모드 전용 내부 UI 블록 활성화 */}
-        {isCustomMode && (
-          <div style={{marginBottom:14, borderTop:"1px solid #eee", paddingTop:14}}>
-            {/* 식판 칸 배치 */}
-            {selDish && ((form.customUnits||[]).length>0 || form.customIngredients.length>0) && (
-              <div style={{marginBottom:12}}>
-                <div style={{fontSize:12,color:"#4a9",fontWeight:700,marginBottom:6}}>🍽️ 식판 칸 배치</div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat("+Math.min(selDish.slots.length,3)+",1fr)",gap:6}}>
-                  {selDish.slots.map((slot,si)=>(
-                    <div key={slot} style={{borderRadius:10,border:"2px solid "+SLOT_COLORS[si],background:"#fff",padding:"8px 6px"}}>
-                      <div style={{fontSize:10,fontWeight:700,textAlign:"center",marginBottom:6,color:"#555",background:SLOT_COLORS[si],borderRadius:6,padding:"2px 4px"}}>{slot}</div>
-                      {(form.customUnits||[]).length>0 && (
-                        <select
-                          value={(form.customSlotUnits||{})[slot]||""}
-                          onChange={e=>setForm(f=>({...f,customSlotUnits:{...(f.customSlotUnits||{}),[slot]:e.target.value||null}}))}
-                          style={{width:"100%",fontSize:10,padding:"3px 4px",borderRadius:6,border:"1px solid #ddd",marginBottom:4, background:(form.customSlotUnits||{})[slot] ? (unitRecipes.find(u=>u.id===(form.customSlotUnits||{})[slot])?.color||"#fff")+"33" : "#fafafa",cursor:"pointer"}}>
-                          <option value="">유닛 없음</option>
-                          {(form.customUnits||[]).map((uId,uidx)=>{
-                            const u=unitRecipes.find(x=>x.id===uId);
-                            if(!u) return null;
-                            return <option key={uidx} value={uId}>{u.name}</option>;
-                          })}
-                        </select>
-                      )}
-                      {form.customIngredients.map(ci=>{
-                        const inSlot = ((form.customSlotIngredients||{})[slot]||[]).includes(ci.name);
-                        const inOther = selDish.slots.filter(s=>s!==slot).some(s=>((form.customSlotIngredients||{})[s]||[]).includes(ci.name));
-                        return(
-                          <div key={ci.name}
-                            onClick={()=>{
-                              if(inOther) return;
-                              setForm(f=>{
-                                const cur = (f.customSlotIngredients||{})[slot]||[];
-                                const next = inSlot ? cur.filter(x=>x!==ci.name) : [...cur,ci.name];
-                                return {...f, customSlotIngredients:{...(f.customSlotIngredients||{}),[slot]:next}};
-                              });
-                            }}
-                            style={{display:"flex",alignItems:"center",gap:4,padding:"3px 4px",borderRadius:6,cursor:inOther?"not-allowed":"pointer", background:inSlot?SLOT_COLORS[si]:"transparent",opacity:inOther?0.35:1,fontSize:11,color:"#444"}}>
-                            <span style={{width:12,height:12,borderRadius:3,border:"1.5px solid "+(inSlot?"#888":"#ccc"), background:inSlot?"#fff":"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                              {inSlot&&<span style={{fontSize:8,fontWeight:700}}>✓</span>}
-                            </span>
-                            {ci.name} x{ci.count}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 유닛 레시피 선택 */}
-            {unitRecipes && unitRecipes.length > 0 && (
-              <div style={{marginBottom:12}}>
-                <div style={{fontSize:12,color:"#4a9",fontWeight:700,marginBottom:6}}>🍱 유닛 레시피 선택</div>
-                {(form.customUnits||[]).length > 0 && (
-                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
-                    {(form.customUnits||[]).map((uId,uidx)=>{
-                      const u = unitRecipes.find(x=>x.id===uId);
-                      if(!u) return null;
-                      return(
-                        <div key={uidx} style={{display:"flex",alignItems:"center",gap:4, background:u.color+"22",border:"1.5px solid "+u.color+"88", borderRadius:20,padding:"3px 10px",fontSize:12}}>
-                          <span style={{fontSize:10,background:u.color+"44",borderRadius:10,padding:"1px 5px",color:"#555"}}>{u.type}</span>
-                          <span style={{fontWeight:600,color:"#333"}}>{u.name}</span>
-                          <button onClick={()=>setForm(f=>({...f,customUnits:(f.customUnits||[]).filter((_,i)=>i!==uidx)}))} style={{background:"none",border:"none",cursor:"pointer",color:"#aaa",fontSize:13,padding:"0 2px"}}>✕</button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                <select onChange={e=>{
-                  const val = e.target.value;
-                  if(!val) return;
-                  setForm(f=>({...f, customUnits:[...(f.customUnits||[]), val]}));
-                  e.target.value="";
-                }} style={{width:"100%",padding:"8px 12px",border:"1.5px solid #e8e8e8",borderRadius:10,fontSize:13,outline:"none",background:"#fafafa",cursor:"pointer"}}>
-                  <option value="">+ 유닛 레시피 추가...</option>
-                  {["밥","국","반찬","소스","기타"].map(type=>{
-                    const filtered = (unitRecipes||[]).filter(u=>u.type===type);
-                    if(filtered.length===0) return null;
-                    return(
-                      <optgroup key={type} label={type}>
-                        {filtered.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
-                      </optgroup>
-                    );
-                  })}
-                </select>
-              </div>
-            )}
-
-            <div style={{fontSize:12,color:"#4a9",fontWeight:700,marginBottom:8}}>✏️ 재고 있는 큐브 선택</div>
-            {/* 영양 균형 현황 */}
-            {(form.customIngredients||[]).length > 0 && (()=>{
-              const catCount = {};
-              form.customIngredients.forEach(ci=>{
-                const cube = cubes.find(c=>c.ingredient===ci.name);
-                const catId = cube?.categoryId || "기타";
-                catCount[catId] = (catCount[catId]||0) + ci.count;
-              });
-              const catNames = {cat1:"곡류",cat2:"채소",cat3:"단백질",cat5:"구황작물",cat_dairy:"유제품",cat_mushroom:"버섯류",cat_seafood:"해산물",cat_seasoning:"맛내기"};
-              const catColors = {cat1:"#FFE0A3",cat2:"#C8F0C0",cat3:"#F4C8C8",cat5:"#FFD6A5",cat_dairy:"#E8E8FF",cat_mushroom:"#E8D4B8",cat_seafood:"#C8E8FF",cat_seasoning:"#E8E8E8"};
-              const hasGrain = catCount["cat1"] > 0;
-              const hasVeg = catCount["cat2"] > 0;
-              const hasProtein = catCount["cat3"] > 0 || catCount["cat_seafood"] > 0;
-              const totalCubes = form.customIngredients.reduce((s,ci)=>s+ci.count,0);
-              return (
-                <div style={{background:"#f9f9f9",borderRadius:12,padding:"10px 12px",marginBottom:10}}>
-                  <div style={{fontSize:11,color:"#888",marginBottom:6,fontWeight:600}}>🥗 영양 균형</div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
-                    {Object.entries(catCount).map(([catId,cnt])=>(
-                      <span key={catId} style={{background:catColors[catId]||"#eee",borderRadius:20,padding:"2px 8px",fontSize:11,fontWeight:600,color:"#555"}}>
-                        {catNames[catId]||catId} {cnt}개
-                      </span>
-                    ))}
-                  </div>
-                  <div style={{display:"flex",gap:8,fontSize:11}}>
-                    <span style={{color:hasGrain?"#4a9":"#ddd",fontWeight:hasGrain?700:400}}>🌾 곡류{hasGrain?"✓":"?"}</span>
-                    <span style={{color:hasVeg?"#4a9":"#ddd",fontWeight:hasVeg?700:400}}>🥦 채소{hasVeg?"✓":"?"}</span>
-                    <span style={{color:hasProtein?"#4a9":"#ddd",fontWeight:hasProtein?700:400}}>🥩 단백질{hasProtein?"✓":"?"}</span>
-                    <span style={{marginLeft:"auto",color:"#aaa"}}>총 {totalCubes}개</span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* 카테고리별 큐브 목록 */}
-            {(()=>{
-              const availCubes = cubes.filter(c=>(stock[c.ingredient]||0)>0);
-              const catGroups = {};
-              const catNames = {cat1:"🌾 곡류",cat2:"🥦 채소",cat3:"🥩 단백질",cat5:"🍠 구황작물",cat_dairy:"🥛 유제품",cat_mushroom:"🍄 버섯류",cat_seafood:"🐟 해산물",cat_seasoning:"🧂 맛내기"};
-              const catColors = {cat1:"#FFE0A3",cat2:"#C8F0C0",cat3:"#F4C8C8",cat5:"#FFD6A5",cat_dairy:"#E8E8FF",cat_mushroom:"#E8D4B8",cat_seafood:"#C8E8FF",cat_seasoning:"#E8E8E8"};
-              const catOrder = ["cat1","cat5","cat3","cat_seafood","cat2","cat_mushroom","cat_dairy","cat_seasoning"];
-              availCubes.forEach(c=>{
-                const g = c.categoryId || "기타";
-                if(!catGroups[g]) catGroups[g] = [];
-                catGroups[g].push(c);
-              });
-              return catOrder.filter(k=>catGroups[k]?.length>0).map(catId=>(
-                <div key={catId} style={{marginBottom:10}}>
-                  <div style={{fontSize:11,fontWeight:700,color:"#666",marginBottom:5,padding:"2px 8px",background:catColors[catId]||"#eee",borderRadius:8,display:"inline-block"}}>
-                    {catNames[catId]||catId}
-                  </div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                    {catGroups[catId].map(cube=>{
-                      const sel = form.customIngredients.find(ci=>ci.name===cube.ingredient);
-                      const selCount = sel?.count || 0;
-                      const avail = stock[cube.ingredient]||0;
-                      return(
-                        <div key={cube.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2, background:selCount>0?(catColors[catId]||"#e8f8f0"):"#f9f9f9", border:"1.5px solid "+(selCount>0?(catColors[catId]||"#7BC67E")+"cc":"#e0e0e0"), borderRadius:12,padding:"6px 8px",minWidth:60,cursor:"pointer", transition:"all 0.1s"}}>
-                          <div style={{fontSize:11,fontWeight:700,color:"#333",textAlign:"center"}}>{cube.ingredient}</div>
-                          <div style={{fontSize:10,color:"#888"}}>{avail}개 재고</div>
-                          {cube.weightG>0&&<div style={{fontSize:9,color:"#aaa"}}>{cube.weightG}g/개</div>}
-                          <div style={{display:"flex",alignItems:"center",gap:4,marginTop:3}}>
-                            <button onClick={e=>{e.stopPropagation();setForm(f=>{
-                              const cur = f.customIngredients.find(ci=>ci.name===cube.ingredient);
-                              if(!cur||cur.count<=0) return f;
-                              const next = cur.count-1;
-                              return {...f, customIngredients: next===0 ? f.customIngredients.filter(ci=>ci.name!==cube.ingredient) : f.customIngredients.map(ci=>ci.name===cube.ingredient?{...ci,count:next}:ci)};
-                            });}} style={{width:20,height:20,borderRadius:"50%",border:"1px solid #ccc",background:"#fff",cursor:"pointer",fontSize:13,lineHeight:"18px",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",color:"#666",flexShrink:0}}>−</button>
-                            <span style={{fontWeight:700,fontSize:13,color:selCount>0?"#333":"#ccc",minWidth:14,textAlign:"center"}}>{selCount}</span>
-                            <button onClick={e=>{e.stopPropagation();if(selCount>=avail)return;setForm(f=>{
-                              const cur = f.customIngredients.find(ci=>ci.name===cube.ingredient);
-                              return {...f, customIngredients: cur ? f.customIngredients.map(ci=>ci.name===cube.ingredient?{...ci,count:ci.count+1}:ci) : [...f.customIngredients,{name:cube.ingredient,count:1}]};
-                            });}} style={{width:20,height:20,borderRadius:"50%",border:"1px solid "+(selCount>=avail?"#eee":"#7BC67E"),background:selCount>=avail?"#f9f9f9":"#7BC67E",cursor:selCount>=avail?"not-allowed":"pointer",fontSize:13,lineHeight:"18px",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",color:selCount>=avail?"#ccc":"#fff",flexShrink:0}}>+</button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ));
-            })()}
-          </div>
-        )}
-
-        {/* 일반 레시피 모드일 때의 재료 준비 체크 UI */}
-        {selRec && !isCustomMode && (
-          <div style={{marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-              <div style={{fontSize:12,color:"#888",fontWeight:600}}>재료 준비 체크</div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                {selDish && selRec && (
-                  <button onClick={()=>setEditSlots(v=>!v)} style={{fontSize:11,padding:"2px 8px",borderRadius:8,border:"1px solid "+(editSlots?"#7BC67E":"#ddd"), background:editSlots?"#e8f8f0":"#f9f9f9",color:editSlots?"#4a9":"#888",cursor:"pointer",fontWeight:editSlots?700:400}}>
-                    {editSlots?"✓ 배치완료":"✏️ 이번만 수정"}
-                  </button>
-                )}
-                {selDish && (
-                  <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,color:"#7a9"}}>
-                    <span>{selDish.icon}</span><span>{selDish.name}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {editSlots && selDish && selRec ? (
-              <div style={{marginBottom:8}}>
-                <div style={{fontSize:11,color:"#7a9",marginBottom:6,padding:"4px 8px",background:"#e8f8f0",borderRadius:8}}>📌 재료를 각 칸에 재배치하세요 (이번 일정만 적용)</div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat("+Math.min(selDish.slots.length,3)+",1fr)",gap:6}}>
-                  {(()=>{
-                    const tokens2 = ingredientsToTokens(selRec.ingredients);
-                    return selDish.slots.map((slot,si)=>{
-                      const slotKeys2 = form.slots[slot]||[];
-                      return(
-                        <div key={slot} style={{borderRadius:10,border:"2px solid "+SLOT_COLORS[si],background:"#fff",padding:"8px 6px"}}>
-                          <div style={{fontSize:10,fontWeight:700,textAlign:"center",marginBottom:6,color:"#555",background:SLOT_COLORS[si],borderRadius:6,padding:"2px 4px"}}>{slot}</div>
-                          {tokens2.map(tok=>{
-                            const checked2 = slotKeys2.includes(tok.tokenKey);
-                            const usedInOther = !checked2 && selDish.slots.filter(s=>s!==slot).some(s=>(form.slots[s]||[]).includes(tok.tokenKey));
-                            const label2 = tokenLabel(tok.tokenKey, tokens2);
-                            return(
-                              <div key={tok.tokenKey}
-                                onClick={()=>{
-                                  if(usedInOther) return;
-                                  setForm(f=>{
-                                    const cur = f.slots[slot]||[];
-                                    const next = cur.includes(tok.tokenKey)?cur.filter(x=>x!==tok.tokenKey):[...cur,tok.tokenKey];
-                                    return {...f,slots:{...f.slots,[slot]:next}};
-                                  });
-                                }}
-                                style={{display:"flex",alignItems:"center",gap:4,padding:"3px 4px",borderRadius:6,cursor:usedInOther?"not-allowed":"pointer", background:checked2?SLOT_COLORS[si]:"transparent",opacity:usedInOther?0.3:1,fontSize:11,color:"#444"}}>
-                                <span style={{width:12,height:12,borderRadius:3,border:"1.5px solid "+(checked2?"#888":"#ccc"),background:checked2?"#fff":"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                                  {checked2&&<span style={{fontSize:8,fontWeight:700}}>✓</span>}
-                                </span>
-                                {label2}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-            ) : selDish ? (
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {(()=>{
-                  const allSlotTokens = selDish.slots.flatMap(s=>form.slots[s]||[]);
-                  const allSlotTokenObjs = allSlotTokens.map(tk=>({tokenKey:tk, ingName:tk.split("__g")[0]}));
-                  return selDish.slots.map((slot,si)=>{
-                    const slotTokens = form.slots[slot]||[];
-                    const tokensToShow = slotTokens.map(tk=>{
-                      const ingName = tk.split("__g")[0];
-                      const ing = selRec.ingredients.find(x=>x.name===ingName);
-                      return ing ? {tokenKey:tk, ingName, ing} : null;
-                    }).filter(Boolean);
-                    if(tokensToShow.length===0) return null;
-                    const allChecked = tokensToShow.every(t=>form.checked.includes(t.tokenKey));
-                    return(
-                      <div key={slot} style={{borderRadius:14,border:"2px solid "+SLOT_COLORS[si],background:"#fff",overflow:"hidden"}}>
-                        <div style={{background:SLOT_COLORS[si],padding:"7px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span style={{fontSize:12,fontWeight:700,color:"#555"}}>{slot}</span>
-                          <div style={{display:"flex",alignItems:"center",gap:6}}>
-                            {unitRecipes && unitRecipes.length>0 && (()=>{
-                              const slotUnitId = form.slotUnits && form.slotUnits[slot];
-                              const slotUnit = slotUnitId ? unitRecipes.find(u=>u.id===slotUnitId) : null;
-                              return(
-                                <select value={slotUnitId||""} onChange={e=>{
-                                  const uid2 = e.target.value;
-                                  setForm(f=>({...f, slotUnits:{...(f.slotUnits||{}), [slot]: uid2||null}}));
-                                }} style={{fontSize:10,padding:"2px 4px",borderRadius:6,border:"1px solid #ccc", background:slotUnit?slotUnit.color+"33":"#fff",cursor:"pointer",maxWidth:90}}>
-                                  <option value="">유닛 없음</option>
-                                  {unitRecipes.map(u=>(
-                                    <option key={u.id} value={u.id}>{u.type} {u.name}</option>
-                                  ))}
-                                </select>
-                              );
-                            })()}
-                            <span style={{fontSize:11,color:allChecked?"#4a9":"#aaa",fontWeight:600}}>
-                              {tokensToShow.filter(t=>form.checked.includes(t.tokenKey)).length}/{tokensToShow.length}
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{padding:"8px 10px",display:"flex",flexDirection:"column",gap:5}}>
-                          {tokensToShow.map(({tokenKey,ingName,ing})=>{
-                            const chk = form.checked.includes(tokenKey);
-                            const cube = cubes.find(c=>c.ingredient===ingName);
-                            const g = cube&&cube.weightG>0 ? 1*cube.weightG : 0;
-                            const label = tokenLabel(tokenKey, allSlotTokenObjs);
-                            return(
-                              <div key={tokenKey} onClick={()=>toggleCheck(tokenKey)} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"8px 10px",borderRadius:10, background:chk?selRec.color+"22":"#fafafa",border:"1.5px solid "+(chk?selRec.color:"#eee"),transition:"all 0.12s"}}>
-                                <span style={{width:18,height:18,borderRadius:5,border:"2px solid "+(chk?selRec.color:"#ccc"),background:chk?selRec.color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                                  {chk&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}
-                                </span>
-                                <span style={{flex:1,fontSize:13,color:chk?"#555":"#333",textDecoration:chk?"line-through":"none",fontWeight:chk?400:500}}>{label}</span>
-                                <span style={{fontSize:11,color:"#aaa",flexShrink:0}}>🧊1개{g>0?" · "+g+"g":""}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-                
-                {/* 배치되지 않은 기타 재료 */}
-                {(()=>{
-                  const allTokens = ingredientsToTokens(selRec.ingredients);
-                  const allSlotTokens = selDish.slots.flatMap(s=>form.slots[s]||[]);
-                  const unassignedTokens = allTokens.filter(t=>!allSlotTokens.includes(t.tokenKey));
-                  if(unassignedTokens.length===0) return null;
-                  return(
-                    <div style={{borderRadius:14,border:"2px dashed #e0e0e0",background:"#fafafa",overflow:"hidden"}}>
-                      <div style={{background:"#f0f0f0",padding:"7px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span style={{fontSize:12,fontWeight:700,color:"#888"}}>기타 재료</span>
-                        <span style={{fontSize:11,color:"#bbb"}}>{unassignedTokens.filter(t=>form.checked.includes(t.tokenKey)).length}/{unassignedTokens.length}</span>
-                      </div>
-                      <div style={{padding:"8px 10px",display:"flex",flexDirection:"column",gap:5}}>
-                        {unassignedTokens.map(({tokenKey,ingName,ing})=>{
-                          const chk = form.checked.includes(tokenKey);
-                          const cube = cubes.find(c=>c.ingredient===ingName);
-                          const g = cube&&cube.weightG>0 ? 1*cube.weightG : 0;
-                          const allToks2 = ingredientsToTokens(selRec.ingredients);
-                          const label = tokenLabel(tokenKey, allToks2);
-                          return(
-                            <div key={tokenKey} onClick={()=>toggleCheck(tokenKey)} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"8px 10px",borderRadius:10, background:chk?selRec.color+"22":"#fff",border:"1.5px solid "+(chk?selRec.color:"#eee")}}>
-                              <span style={{width:18,height:18,borderRadius:5,border:"2px solid "+(chk?selRec.color:"#ccc"),background:chk?selRec.color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                                {chk&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}
-                              </span>
-                              <span style={{flex:1,fontSize:13,color:chk?"#555":"#333",textDecoration:chk?"line-through":"none",fontWeight:chk?400:500}}>{label}</span>
-                              <span style={{fontSize:11,color:"#aaa",flexShrink:0}}>🧊1개{g>0?" · "+g+"g":""}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            ) : (
-              <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                {ingredientsToTokens(selRec.ingredients).map(({tokenKey,ingName,ing})=>{
-                  const chk = form.checked.includes(tokenKey);
-                  const cube = cubes.find(c=>c.ingredient===ingName);
-                  const g = cube&&cube.weightG>0 ? 1*cube.weightG : 0;
-                  const allToks3 = ingredientsToTokens(selRec.ingredients);
-                  const label = tokenLabel(tokenKey, allToks3);
-                  return(
-                    <div key={tokenKey} onClick={()=>toggleCheck(tokenKey)} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",padding:"8px 12px",borderRadius:12, background:chk?selRec.color+"22":"#f9f9f9",border:"1.5px solid "+(chk?selRec.color:"#eee"),transition:"all 0.12s"}}>
-                      <span style={{width:18,height:18,borderRadius:5,border:"2px solid "+(chk?selRec.color:"#ccc"),background:chk?selRec.color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        {chk&&<span style={{color:"#fff",fontSize:11,fontWeight:700}}>✓</span>}
-                      </span>
-                      <span style={{flex:1,fontSize:13,color:chk?"#555":"#333",textDecoration:chk?"line-through":"none",fontWeight:chk?400:500}}>{label}</span>
-                      <span style={{fontSize:11,color:"#aaa",flexShrink:0}}>🧊1개{g>0?" · "+g+"g":""}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* 하단 전체 진행률 프로그래스바 */}
-            {(()=>{
-              const total = ingredientsToTokens(selRec.ingredients).length;
-              const done = ingredientsToTokens(selRec.ingredients).filter(t=>form.checked.includes(t.tokenKey)).length;
-              if(total===0) return null;
-              const pct = Math.round(done/total*100);
-              return(
-                <div style={{marginTop:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#aaa",marginBottom:4}}>
-                    <span>전체 진행</span>
-                    <span style={{fontWeight:600,color:done===total?"#4a9":"#aaa"}}>{done}/{total} {done===total?"🎉 완료!":""}</span>
-                  </div>
-                  <div style={{background:"#f0f0f0",borderRadius:10,height:6}}>
-                    <div style={{width:pct+"%",height:"100%",borderRadius:10,background:done===total?"#7BC67E":selRec.color,transition:"width 0.3s"}} />
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        )}
-
-        <Field label="먹은 양" value={form.amount} onChange={v=>setForm(f=>({...f,amount:v}))} placeholder="80ml, 반 그릇..." />
-        
-        {/* 모달 하단 버튼 액션 영역 */}
-        <div style={{display:"flex",gap:8, marginTop:14}}>
-          {getEntry(target.date,target.meal) && (
-            <PillBtn onClick={()=>setSchedConfirmDel(true)} color="#E78F8F" outline small>삭제</PillBtn>
-          )}
-          <div style={{flex:1}}>
-            <PillBtn onClick={saveEntry} full disabled={!form.recipeId||(!isCustomMode&&(recipeStatus[form.recipeId]||{}).disabled)||(isCustomMode&&form.customIngredients.length===0&&(form.customUnits||[]).length===0)}>저장</PillBtn>
-          </div>
-        </div>
-      </Overlay>
-
-      {/* 삭제 확인 컨펌 창 */}
-      <ConfirmDelete
-        open={schedConfirmDel}
-        message={target.date ? `${fmtFull(target.date)} ${target.meal} 일정을 삭제할까요?` : ""}
-        onConfirm={()=>{ delEntry(); setSchedConfirmDel(false); }}
-        onCancel={()=>setSchedConfirmDel(false)}
-      />
-    </div>
-  );
-}
-
-window.ScheduleTab = ScheduleTab;
+                    const st = recipeStatus[r.id]||{disabl
