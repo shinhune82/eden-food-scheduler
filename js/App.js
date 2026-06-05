@@ -76,9 +76,22 @@ function App({ user }) {
   const setCategories = useCallback(fn=>{setCategoriesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setMakingIds  = useCallback(fn=>{setMakingIdsRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setSnacks     = useCallback(fn=>{setSnacksRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
-  const setUnitRecipes = useCallback(fn=>{setUnitRecipesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;firebase.firestore().collection("users").doc(firebase.auth().currentUser?.uid).collection("data").doc(STORAGE_KEYS.unit).set({value:JSON.stringify(n)});return n;});}, []);
+  const setUnitRecipes = useCallback(fn=>{setUnitRecipesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setVaccData   = useCallback(fn=>{setVaccDataRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
 
+  // 저장 재시도 헬퍼
+  const fsSave = (uid, key, value) => {
+    const attempt = (n) => {
+      firebase.firestore().collection("users").doc(uid).collection("data").doc(key)
+        .set({value: JSON.stringify(value)})
+        .catch(e => {
+          if (n < 3) setTimeout(() => attempt(n + 1), 2000 * n);
+          else console.error("💾 저장 실패 (3회):", key, e.message);
+        });
+    };
+    attempt(1);
+  };
+  
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; console.log("💾 recipes 저장"); firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.r).set({value:JSON.stringify(recipes)}); },[recipes, ready]);
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.s).set({value:JSON.stringify(schedules)}); },[schedules, ready]);
   useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.c).set({value:JSON.stringify(cubes)}); },[cubes, ready]);
