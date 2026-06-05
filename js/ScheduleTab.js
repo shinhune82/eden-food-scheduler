@@ -1,3 +1,5 @@
+const { useState, useEffect, useCallback } = React;
+
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
 const MEALS = ["아침", "점심", "간식", "저녁"];
 const MEAL_ICON = { "아침": "☀️", "점심": "🌤️", "간식": "🍌", "저녁": "🌙" };
