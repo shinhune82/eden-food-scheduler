@@ -1,3 +1,8 @@
+import React from 'react';
+
+// 외부에서 가져오는 유틸 함수 및 상수가 있다고 가정 (프로젝트에 맞게 유지)
+// 예: todayStr, getWeekDates, fmtMD, fmtFull, uid, remapSlotsToDish, rebuildSlotMap, cubeVolume, ingredientsToTokens, tokenLabel, Overlay, WEEKDAYS, MEALS, MEAL_BG, MEAL_ICON
+
 function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, vaccData, stock, unitRecipes }) {
   // 변수 및 상태 선언 최상단 정렬
   const [weekBase, setWeekBase] = React.useState(todayStr());
@@ -22,9 +27,9 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
 
   const customUnitIngredients = isCustomMode
   ? ((form?.customUnits || []).flatMap(uId => {
-      if (!unitRecipes) return []; // unitRecipes가 없으면 빈 배열 반환
+      if (!unitRecipes) return [];
       const u = unitRecipes.find(x => x && x.id === uId);
-      return u && u.ingredients ? u.ingredients : []; // u와 ingredients가 확실히 있을 때만 반환
+      return u && u.ingredients ? u.ingredients : [];
     }))
   : [];
 
@@ -297,7 +302,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         const recWithIngs = rec && rec.id==="__custom__" ? {...rec, ingredients: customIngList||[]} : rec;
         const rawSlots = ent && ent.slots && Object.values(ent.slots).flat().length>0 ? ent.slots : (recWithIngs && recWithIngs.slotMap ? recWithIngs.slotMap : {});
         
-        // 💡 [수정] 일반 레시피 상세 보기에서도 유닛(unitIds)을 포함한 전체 토큰 맵을 빌드합니다.
         const currentIngredients = recWithIngs ? (recWithIngs.ingredients || []) : [];
         const currentUnitIds = recWithIngs ? (recWithIngs.unitIds || []) : [];
         const parsedTokens = ingredientsToTokens(currentIngredients, currentUnitIds, unitRecipes);
@@ -393,8 +397,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                   <div>
                     {hasSlots && Object.values(slots).flat().length>0 && dish.slots.map((slot,si)=>{
                       const slotTokens=(slots[slot]||[]);
-                      
-                      // 💡 [수정] 큐브 재료뿐만 아니라 유닛 레시피 명칭도 슬롯 토큰 필터링을 통과하도록 변경합니다.
                       const tokensToShow=slotTokens.map(tk=>{
                         const nameFromToken=tk.split("__g")[0];
                         const isCube = currentIngredients.some(x=>x.name===nameFromToken);
@@ -423,7 +425,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                             {tokensToShow.map(({tokenKey,ingName})=>(
                               <label key={tokenKey} onClick={e=>e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:4,background:checked.includes(tokenKey)?"#e8f8f0":"#fff",border:"1px solid "+(checked.includes(tokenKey)?"#7BC67E":"#ddd"),borderRadius:20,padding:"4px 10px",cursor:"pointer",fontSize:12}}>
                                 <input type="checkbox" checked={checked.includes(tokenKey)} onChange={()=>toggleDayCheck(tokenKey)} style={{cursor:"pointer",accentColor:"#7BC67E"}}/>
-                                {/* 💡 [수정] 단순 문자열 분리가 아닌, 확장된 parsedTokens 풀을 그대로 넘겨 토큰 라벨을 정확하게 찾아줍니다 */}
                                 {tokenLabel(tokenKey, parsedTokens)}
                               </label>
                             ))}
@@ -478,7 +479,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 const favs = filtered.filter(r=>r.favorite).sort((a,b)=>a.name.localeCompare(b.name,"ko"));
                 const others = filtered.filter(r=>!r.favorite).sort((a,b)=>a.name.localeCompare(b.name,"ko"));
                 const showFav = !rdropSearch && favs.length>0;
-                const showAll = !rdropSearch && favs.length>0 && others.length>0;
                 const list = rdropSearch ? filtered.sort((a,b)=>a.name.localeCompare(b.name,"ko")) : [...favs,...others];
                 return (<>
                   {!rdropSearch && (
@@ -490,6 +490,243 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                       </span>
                     </div>
                   )}
-                  {showFav && <div style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#f9a825",background:"#fffide7",borderBottom:"1px solid #fff9c4"}}>⭐ 즐겨찾기</div>}
-                  {list.map((r,ri)=>{
-                    const st = recipeStatus[r.id]||{disabl
+                  {showFav && <div style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#f9a825",background:"#fffde7",borderBottom:"1px solid #fff9c4"}}>⭐ 즐겨찾기</div>}
+{list.map((r,ri)=>{
+                    const st = recipeStatus[r.id]||{disabled:false,outOfStock:[]};
+                    return (
+                      <div key={r.id} onClick={()=>pickRecipe(r.id, list)} style={{padding:"10px 14px",cursor:st.disabled?"not-allowed":"pointer",background:form.recipeId===r.id?"#f0fcf4":st.disabled?"#fcfcfc":"#fff",borderBottom:"1px solid #f5f5f5",display:"flex",alignItems:"center",justifyContent:"space-between",opacity:st.disabled?0.5:1}}>
+                        <span style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:st.disabled?"#aaa":"#333",fontWeight:form.recipeId===r.id?700:400}}>
+                          <span style={{width:8,height:8,borderRadius:"50%",background:r.color}}/>
+                          {r.name} {r.favorite && "⭐"}
+                        </span>
+                        {st.disabled && <span style={{fontSize:10,color:"#e55",fontWeight:700}}>🚫 {st.outOfStock[0]} 없음</span>}
+                      </div>
+                    );
+                  })}
+                  {list.length===0 && <div style={{padding:"16px",textAlign:"center",color:"#bbb",fontSize:13}}>검색 결과가 없습니다.</div>}
+                </>);
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* 직접 구성(CustomMode) UI 렌더링 구역 */}
+        {isCustomMode && (
+          <div style={{background:"#f4fbf6",border:"1.5px dashed #7BC67E",borderRadius:12,padding:12,marginBottom:12}}>
+            <div style={{fontWeight:700,fontSize:12,color:"#4a9",marginBottom:8}}>🧺 직접 재료/유닛 담기</div>
+            
+            {/* 유닛 레시피 담기 영역 */}
+            {unitRecipes && unitRecipes.length > 0 && (
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#666",marginBottom:4}}>세트(유닛) 추가</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {unitRecipes.map(ur => {
+                    const hasUnit = (form.customUnits || []).includes(ur.id);
+                    return (
+                      <button key={ur.id} onClick={()=>{
+                        setForm(f => {
+                          const exist = (f.customUnits || []).includes(ur.id);
+                          const nextUnits = exist ? f.customUnits.filter(id=>id!==ur.id) : [...(f.customUnits||[]), ur.id];
+                          return {...f, customUnits: nextUnits};
+                        });
+                      }} style={{background:hasUnit?ur.color:"#fff", border:"1px solid "+ur.color, color:hasUnit?"#fff":ur.color, borderRadius:20, padding:"4px 10px", fontSize:11, fontWeight:600, cursor:"pointer"}}>
+                        {hasUnit ? "✓ "+ur.name : "+ "+ur.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 개별 큐브 재료 추가 영역 */}
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:"#666",marginBottom:4}}>개별 큐브 추가</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,maxHeight:120,overflowY:"auto",padding:2,background:"#fff",borderRadius:8,border:"1px solid #e0e0e0"}}>
+                {cubes && cubes.map(c => {
+                  const current = (form.customIngredients || []).find(ci=>ci.name===c.name);
+                  const count = current ? current.count : 0;
+                  const inStock = stock && stock[c.name] ? stock[c.name] : 0;
+                  return (
+                    <div key={c.name} style={{display:"flex",alignItems:"center",gap:4,background:"#f5f5f5",borderRadius:20,padding:"2px 8px",fontSize:11}}>
+                      <span style={{fontWeight:500,color:inStock<=0?"#aaa":"#333"}}>{c.name}({inStock})</span>
+                      {count > 0 && (
+                        <button onClick={()=>{
+                          setForm(f => {
+                            const next = f.customIngredients.map(ci=>ci.name===c.name?{...ci,count:ci.count-1}:ci).filter(ci=>ci.count>0);
+                            return {...f, customIngredients: next};
+                          });
+                        }} style={{border:"none",background:"#e0e0e0",borderRadius:"50%",width:16,height:16,cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}}>-</button>
+                      )}
+                      {count > 0 && <span style={{fontWeight:700,color:"#4a9"}}>{count}</span>}
+                      <button onClick={()=>{
+                        if(count >= inStock) return;
+                        setForm(f => {
+                          const exist = f.customIngredients.some(ci=>ci.name===c.name);
+                          const next = exist 
+                            ? f.customIngredients.map(ci=>ci.name===c.name?{...ci,count:ci.count+1}:ci)
+                            : [...f.customIngredients, {name:c.name, count:1}];
+                          return {...f, customIngredients: next};
+                        });
+                      }} disabled={inStock<=0} style={{border:"none",background:count>=inStock?"#ccc":"#7BC67E",color:"#fff",borderRadius:"50%",width:16,height:16,cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 식기(식판) 선택 구역 */}
+        {selRec && (
+          <div style={{marginBottom:12,position:"relative"}}>
+            <div style={{fontSize:12,color:"#888",marginBottom:5}}>식기(식판) 매핑</div>
+            <div onClick={()=>{setDdrop(o=>!o);setRdrop(false);}} style={{padding:"10px 14px",border:"1.5px solid #e8e8e8",borderRadius:12,cursor:"pointer",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              {selDish ? (
+                <span style={{fontSize:14,fontWeight:600,color:"#333"}}>{selDish.icon} {selDish.name}</span>
+              ) : <span style={{color:"#bbb",fontSize:14}}>일반 그릇 (슬롯 매핑 없음)</span>}
+              <span style={{color:"#aaa"}}>{ddrop?"▲":"▼"}</span>
+            </div>
+            {ddrop && (
+              <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:200,background:"#fff",border:"1.5px solid #e8e8e8",borderRadius:12,boxShadow:"0 8px 24px rgba(0,0,0,0.1)",overflow:"hidden",marginTop:4,maxHeight:200,overflowY:"auto"}}>
+                <div onClick={()=> {pickDish(""); setForm(f=>({...f, slots:{}, customSlotIngredients:{}, customSlotUnits:{}, slotUnits:{}}));}} style={{padding:"10px 14px",cursor:"pointer",background:"#fff",borderBottom:"1px solid #f5f5f5",fontSize:13,color:"#999"}}>
+                  ❌ 매핑 해제 (그릇 없음)
+                </div>
+                {dishes.map(d=>(
+                  <div key={d.id} onClick={()=>pickDish(d.id)} style={{padding:"10px 14px",cursor:"pointer",background:form.dishId===d.id?"#f0fcf4":"#fff",borderBottom:"1px solid #f5f5f5",fontSize:13,fontWeight:form.dishId===d.id?700:400,color:"#333"}}>
+                    {d.icon} {d.name} <span style={{fontSize:11,color:"#aaa",fontWeight:400}}>({d.slots.join(", ")})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 식판 슬롯 매핑 편집 UI 영역 */}
+        {selRec && selDish && selDish.slots && (
+          <div style={{background:"#f9f9f9",borderRadius:12,padding:12,marginBottom:12,border:"1px solid #eee"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <span style={{fontWeight:700,fontSize:12,color:"#555"}}>📍 슬롯별 재료 배치</span>
+              <button onClick={()=>setEditSlots(v=>!v)} style={{background:"none",border:"none",color:"#48a",fontSize:12,cursor:"pointer",fontWeight:600}}>
+                {editSlots ? "완료" : "⚙️ 배치 편집"}
+              </button>
+            </div>
+
+            {selDish.slots.map(slot => {
+              const currentSlots = isCustomMode ? (form.customSlotIngredients || {}) : (form.slots || {});
+              const currentSlotUnits = isCustomMode ? (form.customSlotUnits || {}) : (form.slotUnits || {});
+              
+              const slotTk = currentSlots[slot] || [];
+              const assignedUnitId = currentSlotUnits[slot];
+              const assignedUnit = assignedUnitId && unitRecipes ? unitRecipes.find(u=>u.id===assignedUnitId) : null;
+
+              const builtTokens = ingredientsToTokens(selRec.ingredients || [], isCustomMode ? [] : (selRec.unitIds || []), unitRecipes);
+
+              if (editSlots) {
+                return (
+                  <div key={slot} style={{marginBottom:8,background:"#fff",padding:8,borderRadius:8,border:"1.5px solid #e0e0e0"}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#444",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span>📌 {slot}</span>
+                      {assignedUnit && <span style={{background:assignedUnit.color+"22",color:assignedUnit.color,fontSize:10,padding:"1px 6px",borderRadius:6}}>{assignedUnit.name}</span>}
+                    </div>
+                    
+                    {/* 유닛 레시피 배치 세팅 */}
+                    {isCustomMode && (form.customUnits || []).length > 0 && (
+                      <div style={{marginBottom:6,borderBottom:"1px dashed #eee",paddingBottom:4}}>
+                        <div style={{fontSize:10,color:"#888",marginBottom:2}}>유닛(세트) 배치:</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                          {(form.customUnits||[]).map(uId => {
+                            const u = unitRecipes.find(x=>x.id===uId);
+                            if(!u) return null;
+                            const isAssigned = assignedUnitId === uId;
+                            return (
+                              <button key={uId} onClick={()=>{
+                                setForm(f => {
+                                  const nextSU = {...(f.customSlotUnits||{})};
+                                  if(isAssigned) delete nextSU[slot];
+                                  else nextSU[slot] = uId;
+                                  return {...f, customSlotUnits: nextSU};
+                                });
+                              }} style={{background:isAssigned?u.color:"#fff", border:"1px solid "+u.color, color:isAssigned?"#fff":u.color, borderRadius:4, padding:"2px 6px", fontSize:10, cursor:"pointer"}}>
+                                {u.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 토큰(큐브) 선택 영역 */}
+                    <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                      {builtTokens.map(tk => {
+                        const active = slotTk.includes(tk.tokenKey);
+                        return (
+                          <button key={tk.tokenKey} onClick={()=>{
+                            setForm(f => {
+                              const targetField = isCustomMode ? 'customSlotIngredients' : 'slots';
+                              const prevMap = f[targetField] || {};
+                              let oldArr = prevMap[slot] || [];
+                              let nextArr = oldArr.includes(tk.tokenKey) ? oldArr.filter(x=>x!==tk.tokenKey) : [...oldArr, tk.tokenKey];
+                              
+                              // 다른 슬롯에서 중복 배치를 제거해주는 위생 로직
+                              const nextMap = {...prevMap};
+                              Object.keys(nextMap).forEach(k => {
+                                if(nextMap[k]) nextMap[k] = nextMap[k].filter(x=>x!==tk.tokenKey);
+                              });
+                              nextMap[slot] = nextArr;
+                              return {...f, [targetField]: nextMap};
+                            });
+                          }} style={{background:active?"#7BC67E":"#f5f5f5",color:active?"#fff":"#555",border:"none",borderRadius:4,padding:"3px 8px",fontSize:10,cursor:"pointer"}}>
+                            {tokenLabel(tk.tokenKey, builtTokens)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+
+              // 비편집 모드 요약 노출
+              const validTokens = slotTk.map(tKey => builtTokens.find(bt=>bt.tokenKey===tKey)).filter(Boolean);
+              if(validTokens.length===0 && !assignedUnit) return null;
+              return (
+                <div key={slot} style={{fontSize:11,color:"#444",background:"#fff",padding:"4px 8px",borderRadius:6,marginBottom:4,display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontWeight:700,color:"#666"}}>• {slot}:</span>
+                  {assignedUnit && <span style={{fontWeight:600,color:assignedUnit.color}}>[🍱 {assignedUnit.name}]</span>}
+                  <span>{validTokens.map(vt=>tokenLabel(vt.tokenKey, builtTokens)).join(", ")}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 하단 입력 폼 및 저장 버튼 */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+          <div>
+            <div style={{fontSize:12,color:"#888",marginBottom:4}}>섭취량 (정량 분량)</div>
+            <input value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="예: 120ml, 2/3 완식" style={{width:"100%",padding:"10px",border:"1.5px solid #e8e8e8",borderRadius:12,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div>
+            <div style={{fontSize:12,color:"#888",marginBottom:4}}>메모 / 특이사항</div>
+            <input value={form.memo} onChange={e=>setForm(f=>({...f,memo:e.target.value}))} placeholder="예: 알레르기 주의, 흘림 많음" style={{width:"100%",padding:"10px",border:"1.5px solid #e8e8e8",borderRadius:12,fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+        </div>
+
+        <div style={{display:"flex",gap:8,marginTop:16}}>
+          {schedules.some(s=>s.date===target.date&&s.meal===target.meal) && (
+            <button onClick={()=>{
+              if(schedConfirmDel){ delEntry(); setSchedConfirmDel(false); }
+              else { setSchedConfirmDel(true); }
+            }} style={{background:schedConfirmDel?"#d32f2f":"#fff",color:schedConfirmDel?"#fff":"#e53935",border:"1.5px solid #e53935",borderRadius:12,padding:"10px 18px",fontSize:13,fontWeight:700,cursor:"pointer",transition:"all 0.15s"}}>
+              {schedConfirmDel ? "💥 정말 삭제" : "🗑️ 삭제"}
+            </button>
+          )}
+          <button onClick={saveEntry} disabled={!form.recipeId} style={{flex:1,background:form.recipeId?"#7BC67E":"#ccc",color:"#fff",border:"none",borderRadius:12,padding:"12px",fontSize:14,fontWeight:700,cursor:form.recipeId?"pointer":"not-allowed"}}>
+            💾 식단 저장하기
+          </button>
+        </div>
+      </Overlay>
+    </div>
+  );
+}
+
+export default ScheduleTab;
