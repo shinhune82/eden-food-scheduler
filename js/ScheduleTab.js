@@ -1,5 +1,3 @@
-var { useState } = React;
-
 const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
 const MEALS = ["아침", "점심", "간식", "저녁"];
 const MEAL_ICON = { "아침": "☀️", "점심": "🌤️", "간식": "🍌", "저녁": "🌙" };
@@ -8,18 +6,18 @@ const SLOT_COLORS = ["#fff1f0", "#f5f5f5", "#e6f7ff", "#f6ffed", "#fff7e6"];
 
 function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, vaccData, stock, unitRecipes }) {
   // 변수 및 상태 선언 최상단 정렬
-  const [weekBase, setWeekBase] = useState(todayStr());
-  const [modal, setModal] = useState(false);
-  const [target, setTarget] = useState({date:"",meal:""});
-  const [form, setForm] = useState({recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[],customUnits:[],customSlotUnits:{},customSlotIngredients:{},slotUnits:{}});
-  const [rdrop, setRdrop] = useState(false);
-  const [ddrop, setDdrop] = useState(false);
-  const [rdropSearch, setRdropSearch] = useState("");
-  const [editSlots, setEditSlots] = useState(false);
-  const [schedConfirmDel, setSchedConfirmDel] = useState(false);
-  const [moveSource, setMoveSource] = useState(null); 
-  const [dayView, setDayView] = useState(todayStr());
-  const [bannerOpen, setBannerOpen] = useState(false);
+  const [weekBase, setWeekBase] = React.useState(todayStr());
+  const [modal, setModal] = React.useState(false);
+  const [target, setTarget] = React.useState({date:"",meal:""});
+  const [form, setForm] = React.useState({recipeId:"",dishId:"",amount:"",memo:"",checked:[],slots:{},customMode:false,customIngredients:[],customUnits:[],customSlotUnits:{},customSlotIngredients:{},slotUnits:{}});
+  const [rdrop, setRdrop] = React.useState(false);
+  const [ddrop, setDdrop] = React.useState(false);
+  const [rdropSearch, setRdropSearch] = React.useState("");
+  const [editSlots, setEditSlots] = React.useState(false);
+  const [schedConfirmDel, setSchedConfirmDel] = React.useState(false);
+  const [moveSource, setMoveSource] = React.useState(null); 
+  const [dayView, setDayView] = React.useState(todayStr());
+  const [bannerOpen, setBannerOpen] = React.useState(false);
 
   const weekDates = getWeekDates(weekBase);
   const today = todayStr();
