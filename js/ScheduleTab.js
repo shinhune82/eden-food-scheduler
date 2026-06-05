@@ -603,36 +603,52 @@
               {/* 개별 큐브 재료 추가 영역 */}
               <div>
                 <div style={{fontSize: 11, fontWeight: 700, color: "#666", marginBottom: 4}}>개별 큐브 추가</div>
-                <div style={{display: "flex", flexWrap: "wrap", gap: 6, maxHeight: 120, overflowY: "auto", padding: 2, background: "#fff", borderRadius: 8, border: "1px solid #e0e0e0"}}>
-                  {cubes && cubes.map(c => {
+                <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 6, maxHeight: 160, overflowY: "auto", padding: 6, background: "#fff", borderRadius: 8, border: "1px solid #e0e0e0"}}>
+                  {cubes && [...cubes].sort((a, b) => {
+                    const aStock = stock && stock[a.name] ? stock[a.name] : 0;
+                    const bStock = stock && stock[b.name] ? stock[b.name] : 0;
+                    return bStock - aStock; // 재고 많은 순 정렬
+                  }).map(c => {
                     const current = (form.customIngredients || []).find(ci => ci.name === c.name);
                     const count = current ? current.count : 0;
                     const inStock = stock && stock[c.name] ? stock[c.name] : 0;
                     return (
-                      <div key={c.name} style={{display: "flex", alignItems: "center", gap: 4, background: inStock <= 0 ? "#f0f0f0" : (count > 0 ? "#e8f8f0" : "#f5f5f5"), borderRadius: 20, padding: "3px 10px", fontSize: 11, border: count > 0 ? "1.5px solid #7BC67E" : "1px solid #e0e0e0", minWidth: 0}}>
-                        <span style={{fontWeight: 600, color: inStock <= 0 ? "#bbb" : (count > 0 ? "#2a7a3a" : "#333"), whiteSpace: "nowrap"}}>
+                      <div key={c.name} style={{
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                        background: count > 0 ? "#e8f8f0" : inStock <= 0 ? "#f8f8f8" : "#fff",
+                        border: "1.5px solid " + (count > 0 ? "#7BC67E" : inStock <= 0 ? "#e8e8e8" : "#ddd"),
+                        borderRadius: 10, padding: "6px 4px", cursor: inStock <= 0 ? "not-allowed" : "pointer",
+                        opacity: inStock <= 0 ? 0.5 : 1
+                      }}>
+                        <span style={{fontWeight: 700, fontSize: 11, color: count > 0 ? "#2a7a3a" : inStock <= 0 ? "#bbb" : "#333", textAlign: "center", lineHeight: 1.3, wordBreak: "keep-all"}}>
                           {c.name}
-                          <span style={{fontWeight: 400, color: inStock <= 0 ? "#ccc" : "#888", fontSize: 10}}> ({inStock}개)</span>
                         </span>
-                        {count > 0 && (
-                          <button onClick={() => {
+                        <span style={{fontSize: 10, color: inStock <= 0 ? "#ccc" : "#888"}}>
+                          재고 {inStock}개
+                        </span>
+                        <div style={{display: "flex", alignItems: "center", gap: 4}}>
+                          {count > 0 && (
+                            <button onClick={(e) => {
+                              e.stopPropagation();
+                              setForm(f => {
+                                const next = f.customIngredients.map(ci => ci.name === c.name ? {...ci, count: ci.count - 1} : ci).filter(ci => ci.count > 0);
+                                return {...f, customIngredients: next};
+                              });
+                            }} style={{border: "none", background: "#e0e0e0", borderRadius: "50%", width: 18, height: 18, cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700}}>−</button>
+                          )}
+                          {count > 0 && <span style={{fontWeight: 800, fontSize: 12, color: "#2a7a3a", minWidth: 14, textAlign: "center"}}>{count}</span>}
+                          <button onClick={(e) => {
+                            e.stopPropagation();
+                            if (count >= inStock) return;
                             setForm(f => {
-                              const next = f.customIngredients.map(ci => ci.name === c.name ? {...ci, count: ci.count - 1} : ci).filter(ci => ci.count > 0);
+                              const exist = f.customIngredients.some(ci => ci.name === c.name);
+                              const next = exist
+                                ? f.customIngredients.map(ci => ci.name === c.name ? {...ci, count: ci.count + 1} : ci)
+                                : [...f.customIngredients, {name: c.name, count: 1}];
                               return {...f, customIngredients: next};
                             });
-                          }} style={{border: "none", background: "#e0e0e0", borderRadius: "50%", width: 16, height: 16, cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center"}}>-</button>
-                        )}
-                        {count > 0 && <span style={{fontWeight: 700, color: "#4a9"}}>{count}</span>}
-                        <button onClick={() => {
-                          if (count >= inStock) return;
-                          setForm(f => {
-                            const exist = f.customIngredients.some(ci => ci.name === c.name);
-                            const next = exist 
-                              ? f.customIngredients.map(ci => ci.name === c.name ? {...ci, count: ci.count + 1} : ci)
-                              : [...f.customIngredients, {name: c.name, count: 1}];
-                            return {...f, customIngredients: next};
-                          });
-                        }} disabled={inStock <= 0} style={{border: "none", background: count >= inStock ? "#ccc" : "#7BC67E", color: "#fff", borderRadius: "50%", width: 16, height: 16, cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center"}}>+</button>
+                          }} disabled={inStock <= 0} style={{border: "none", background: count >= inStock ? "#ccc" : "#7BC67E", color: "#fff", borderRadius: "50%", width: 18, height: 18, cursor: inStock <= 0 ? "not-allowed" : "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700}}>+</button>
+                        </div>
                       </div>
                     );
                   })}
