@@ -1,5 +1,3 @@
-const { useState, useEffect, useCallback, useMemo } = React;
-
 function DishTab({ dishes, setDishes }) {
   const [modal, setModal] = useState(false);
   const [editId, setEditId] = useState(null);
