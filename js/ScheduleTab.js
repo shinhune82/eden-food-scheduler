@@ -927,4 +927,4 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   );
 }
 
-export default ScheduleTab;
+window.ScheduleTab = ScheduleTab;
