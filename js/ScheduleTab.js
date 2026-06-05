@@ -142,7 +142,7 @@
         const filtered = ss.filter(s => !(s.date === fromDate && s.meal === fromMeal) && !(s.date === toDate && s.meal === toMeal));
         return [...filtered, {...srcEntry, id: window.uid(), date: toDate, meal: toMeal}];
       });
-      moveSource(null);
+      setmoveSource(null);
     };
 
     return (
@@ -465,7 +465,7 @@
         <window.Overlay open={modal} onClose={() => setModal(false)} wide title={target.date ? window.fmtFull(target.date) + " " + MEAL_ICON[target.meal] + " " + target.meal : ""}>
           <div style={{marginBottom: 12, position: "relative"}}>
             <div style={{fontSize: 12, color: "#888", marginBottom: 5}}>레시피 선택</div>
-            <div onClick={() => { setRdrop(o => { if (!o) setRdropSearch(""); return !o; }); setDdrop(false); }} style={{padding: "10px 14px", border: "1.5px solid #e8e8e8", borderRadius: 12, cursor: "pointer", background: "#fafafa", display: "flex", justifycontent: "space-between", alignItems: "center"}}>
+            <div onClick={() => { setRdrop(o => { if (!o) setRdropSearch(""); return !o; }); setDdrop(false); }} style={{padding: "10px 14px", border: "1.5px solid #e8e8e8", borderRadius: 12, cursor: "pointer", background: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
               {selRec ? (
                 <span style={{display: "flex", alignItems: "center", gap: 8}}>
                   <span style={{width: 10, height: 10, borderRadius: "50%", background: selRec.color, display: "inline-block"}} />
@@ -475,7 +475,7 @@
               <span style={{color: "#aaa"}}>{rdrop ? "▲" : "▼"}</span>
             </div>
             {rdrop && (
-              <div style={{position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: "#fff", border: "1.5px solid #e8e8e8", borderRadius: 12, boxhtmlShadow: "0 8px 24px rgba(0,0,0,0.1)", overflow: "hidden", marginTop: 4}}>
+              <div style={{position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: "#fff", border: "1.5px solid #e8e8e8", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.1)", overflow: "hidden", marginTop: 4}}>
                 <div style={{padding: "8px 10px", borderBottom: "1px solid #f0f0f0"}}>
                   <input autoFocus value={rdropSearch} onChange={e => setRdropSearch(e.target.value)} placeholder="레시피 검색..." onClick={e => e.stopPropagation()} style={{width: "100%", padding: "6px 10px", border: "1.5px solid #e0e0e0", borderRadius: 8, fontSize: 13, outline: "none", boxSizing: "border-box"}}/>
                 </div>
@@ -587,14 +587,14 @@
           {selRec && (
             <div style={{marginBottom: 12, position: "relative"}}>
               <div style={{fontSize: 12, color: "#888", marginBottom: 5}}>식기(식판) 매핑</div>
-              <div onClick={() => { setDdrop(o => !o); setRdrop(false); }} style={{padding: "10px 14px", border: "1.5px solid #e8e8e8", borderRadius: 12, cursor: "pointer", background: "#fafafa", display: "flex", justifycontent: "space-between", alignItems: "center"}}>
+              <div onClick={() => { setDdrop(o => !o); setRdrop(false); }} style={{padding: "10px 14px", border: "1.5px solid #e8e8e8", borderRadius: 12, cursor: "pointer", background: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                 {selDish ? (
                   <span style={{fontSize: 14, fontWeight: 600, color: "#333"}}>{selDish.icon} {selDish.name}</span>
                 ) : <span style={{color: "#bbb", fontSize: 14}}>일반 그릇 (슬롯 매핑 없음)</span>}
                 <span style={{color: "#aaa"}}>{ddrop ? "▲" : "▼"}</span>
               </div>
               {ddrop && (
-                <div style={{position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: "#fff", border: "1.5px solid #e8e8e8", borderRadius: 12, boxhtmlShadow: "0 8px 24px rgba(0,0,0,0.1)", overflow: "hidden", marginTop: 4, maxHeight: 200, overflowY: "auto"}}>
+                <div style={{position: "absolute", top: "100%", left: 0, right: 0, zIndex: 200, background: "#fff", border: "1.5px solid #e8e8e8", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.1)", overflow: "hidden", marginTop: 4, maxHeight: 200, overflowY: "auto"}}>
                   <div onClick={() => { pickDish(""); setForm(f => ({...f, slots: {}, customSlotIngredients: {}, customSlotUnits: {}, slotUnits: {}})); }} style={{padding: "10px 14px", cursor: "pointer", background: "#fff", borderBottom: "1px solid #f5f5f5", fontSize: 13, color: "#999"}}>
                     ❌ 매핑 해제 (그릇 없음)
                   </div>
@@ -611,7 +611,7 @@
           {/* 식판 슬롯 매핑 편집 UI */}
           {selRec && selDish && selDish.slots && (
             <div style={{background: "#f9f9f9", borderRadius: 12, padding: 12, marginBottom: 12, border: "1px solid #eee"}}>
-              <div style={{display: "flex", justifycontent: "space-between", alignItems: "center", marginBottom: 8}}>
+              <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8}}>
                 <span style={{fontWeight: 700, fontSize: 12, color: "#555"}}>📍 슬롯별 재료 배치</span>
                 <button onClick={() => setEditSlots(v => !v)} style={{background: "none", border: "none", color: "#48a", fontSize: 12, cursor: "pointer", fontWeight: 600}}>
                   {editSlots ? "완료" : "⚙️ 배치 편집"}
