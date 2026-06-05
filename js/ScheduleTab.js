@@ -461,13 +461,8 @@
                         const slotTokens = (slots[slot] || []);
                         const tokensToShow = slotTokens.map(tk => {
                           const nameFromToken = tk.split("__g")[0];
-                          const isCube = currentIngredients.some(x => x.name === nameFromToken);
-                          const isUnit = currentUnitIds.some(uId => {
-                            const u = (unitRecipes || []).find(x => x.id === uId);
-                            return u && u.name === nameFromToken;
-                          });
-                          return (isCube || isUnit) ? {tokenKey: tk, ingName: nameFromToken} : null;
-                        }).filter(Boolean);
+                          return { tokenKey: tk, ingName: nameFromToken };  // 필터 없이 그냥 통과
+                         }).filter(Boolean);
 
                         if (tokensToShow.length === 0) return null;
                         const allChk = tokensToShow.every(t => checked.includes(t.tokenKey));
@@ -694,30 +689,38 @@
                       </div>
                       
                       {/* 유닛 레시피 배치 */}
-                      {isCustomMode && (form.customUnits || []).length > 0 && (
-                        <div style={{marginBottom: 6, borderBottom: "1px dashed #eee", paddingBottom: 4}}>
-                          <div style={{fontSize: 10, color: "#888", marginBottom: 2}}>유닛(세트) 배치:</div>
-                          <div style={{display: "flex", flexWrap: "wrap", gap: 4}}>
-                            {(form.customUnits || []).map(uId => {
-                              const u = unitRecipes.find(x => x.id === uId);
-                              if (!u) return null;
-                              const isAssigned = assignedUnitId === uId;
-                              return (
-                                <button key={uId} onClick={() => {
-                                  setForm(f => {
-                                    const nextSU = {...(f.customSlotUnits || {})};
-                                    if (isAssigned) delete nextSU[slot];
-                                    else nextSU[slot] = uId;
-                                    return {...f, customSlotUnits: nextSU};
-                                  });
-                                }} style={{background: isAssigned ? u.color : "#fff", border: "1px solid " + u.color, color: isAssigned ? "#fff" : u.color, borderRadius: 4, padding: "2px 6px", fontSize: 10, cursor: "pointer"}}>
-                                  {u.name}
-                                </button>
-                              );
-                            })}
+                      {(() => {
+                        const unitIds = isCustomMode 
+                          ? (form.customUnits || []) 
+                          : (selRec && selRec.unitIds ? selRec.unitIds : []);
+                        if (unitIds.length === 0) return null;
+                        return (
+                          <div style={{marginBottom: 6, borderBottom: "1px dashed #eee", paddingBottom: 4}}>
+                            <div style={{fontSize: 10, color: "#888", marginBottom: 2}}>유닛(세트) 배치:</div>
+                            <div style={{display: "flex", flexWrap: "wrap", gap: 4}}>
+                              {unitIds.map(uId => {
+                                const u = (unitRecipes || []).find(x => x.id === uId);
+                                if (!u) return null;
+                                const slotUnitsField = isCustomMode ? 'customSlotUnits' : 'slotUnits';
+                                const currentSU = form[slotUnitsField] || {};
+                                const isAssigned = currentSU[slot] === uId;
+                                return (
+                                  <button key={uId} onClick={() => {
+                                    setForm(f => {
+                                      const nextSU = {...(f[slotUnitsField] || {})};
+                                      if (isAssigned) delete nextSU[slot];
+                                      else nextSU[slot] = uId;
+                                      return {...f, [slotUnitsField]: nextSU};
+                                    });
+                                  }} style={{background: isAssigned ? u.color : "#fff", border: "1px solid " + u.color, color: isAssigned ? "#fff" : u.color, borderRadius: 4, padding: "2px 6px", fontSize: 10, cursor: "pointer"}}>
+                                    {u.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* 토큰(큐브) 선택 */}
                       <div style={{display: "flex", flexWrap: "wrap", gap: 4}}>
