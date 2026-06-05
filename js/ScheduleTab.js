@@ -1,6 +1,3 @@
-// ⚠️ 충돌을 방지하기 위해 상단의 const { useState } 나 const todayStr 선언을 모두 제거했습니다.
-// WEEKDAYS, MEALS 등 내부 상수만 안전하게 블록 스코프 외부 혹은 내부에 유지합니다.
-
 (function() {
   const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
   const MEALS = ["아침", "점심", "간식", "저녁"];
@@ -8,9 +5,47 @@
   const MEAL_BG = { "아침": "#fffae6", "점심": "#e6f7ff", "간식": "#f9f0ff", "저녁": "#f6fff5" };
   const SLOT_COLORS = ["#fff1f0", "#f5f5f5", "#e6f7ff", "#f6ffed", "#fff7e6"];
 
+  // 💡 window에 유틸 함수가 없을 때를 대비한 내부 방어용 대안 함수(Fallback) 정의
+  const safeFmtMD = (dateStr) => {
+    if (window.fmtMD) return window.fmtMD(dateStr);
+    if (!dateStr) return "";
+    const parts = dateStr.split("-");
+    return parts.length >= 3 ? `${parseInt(parts[1])}/${parseInt(parts[2])}` : dateStr;
+  };
+
+  const safeFmtFull = (dateStr) => {
+    if (window.fmtFull) return window.fmtFull(dateStr);
+    return dateStr || "";
+  };
+
+  const safeTodayStr = () => {
+    if (window.todayStr) return window.todayStr();
+    return new Date().toISOString().slice(0, 10);
+  };
+
+  const safeGetWeekDates = (baseDate) => {
+    if (window.getWeekDates) return window.getWeekDates(baseDate);
+    const current = new Date(baseDate);
+    const day = current.getDay();
+    const distance = day === 0 ? -6 : 1 - day; // 월요일 기준 주간 날짜 배열 생성
+    const monday = new Date(current.setDate(current.getDate() + distance));
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const next = new Date(monday);
+      next.setDate(monday.getDate() + i);
+      dates.push(next.toISOString().slice(0, 10));
+    }
+    return dates;
+  };
+
+  const safeUid = () => {
+    if (window.uid) return window.uid();
+    return "id_" + Math.random().toString(36).substr(2, 9);
+  };
+
   function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, vaccData, stock, unitRecipes }) {
-    // 💡 중복 선언 에러를 원천 차단하기 위해 React.useState를 직접 호출합니다.
-    const [weekBase, setWeekBase] = React.useState(window.todayStr());
+    // 💡 중복 선언 에러 방지를 위해 React 스코프 직접 호출 및 방어 함수 적용
+    const [weekBase, setWeekBase] = React.useState(safeTodayStr());
     const [modal, setModal] = React.useState(false);
     const [target, setTarget] = React.useState({date:"", meal:""});
     const [form, setForm] = React.useState({recipeId:"", dishId:"", amount:"", memo:"", checked:[], slots:{}, customMode:false, customIngredients:[], customUnits:[], customSlotUnits:{}, customSlotIngredients:{}, slotUnits:{}});
@@ -20,12 +55,11 @@
     const [editSlots, setEditSlots] = React.useState(false);
     const [schedConfirmDel, setSchedConfirmDel] = React.useState(false);
     const [moveSource, setMoveSource] = React.useState(null); 
-    const [dayView, setDayView] = React.useState(window.todayStr());
+    const [dayView, setDayView] = React.useState(safeTodayStr());
     const [bannerOpen, setBannerOpen] = React.useState(false);
 
-    // 전역 유틸리티 함수는 window 객체에서 안전하게 가져와 사용
-    const weekDates = window.getWeekDates ? window.getWeekDates(weekBase) : [];
-    const today = window.todayStr ? window.todayStr() : new Date().toISOString().split('T')[0];
+    const weekDates = safeGetWeekDates(weekBase);
+    const today = safeTodayStr();
     const getEntry = (date, meal) => schedules.find(s => s.date === date && s.meal === meal);
 
     const isCustomMode = form.recipeId === "__custom__";
@@ -60,9 +94,9 @@
       const defDish  = ex ? (ex.dishId || "") : (defRec && defRec.dishId ? defRec.dishId : "");
       
       const defDishObj = dishes.find(d => d.id === defDish);
-      const defSlots = defRec && defDishObj
+      const defSlots = defRec && defDishObj && window.remapSlotsToDish
         ? window.remapSlotsToDish(rawSlots, defDishObj.slots, defRec.ingredients)
-        : (defRec ? window.rebuildSlotMap(rawSlots, defRec.ingredients) : rawSlots);
+        : (defRec && window.rebuildSlotMap ? window.rebuildSlotMap(rawSlots, defRec.ingredients) : rawSlots);
       const isExCustom = rId === "__custom__";
       
       setForm(ex
@@ -89,7 +123,7 @@
     const pickRecipe = (id, recipeList) => {
       if ((recipeStatus[id] || {}).disabled) return;
       const rec = (recipeList || recipes).find(r => r.id === id);
-      const cleanSlots = rec && rec.slotMap ? window.rebuildSlotMap(rec.slotMap, rec.ingredients) : {};
+      const cleanSlots = rec && rec.slotMap && window.rebuildSlotMap ? window.rebuildSlotMap(rec.slotMap, rec.ingredients) : {};
       setForm(f => ({...f, recipeId: id, checked: [], slots: cleanSlots, dishId: rec && rec.dishId ? rec.dishId : ""}));
       setRdrop(false);
     };
@@ -98,7 +132,7 @@
       const newDish = dishes.find(d => d.id === id);
       const rec = recipes.find(r => r.id === form.recipeId);
       let newSlots = {};
-      if (newDish && rec && rec.slotMap && Object.keys(rec.slotMap).length > 0) {
+      if (newDish && rec && rec.slotMap && Object.keys(rec.slotMap).length > 0 && window.remapSlotsToDish) {
         const remapped = window.remapSlotsToDish(rec.slotMap, newDish.slots, rec.ingredients);
         newDish.slots.forEach(slot => { if (remapped[slot]) newSlots[slot] = remapped[slot]; });
       }
@@ -119,7 +153,7 @@
         entryData.customIngredients = form.customIngredients || [];
         entryData.customUnits = form.customUnits || [];
       }
-      setSchedules(ss => [...ss.filter(s => !(s.date === target.date && s.meal === target.meal)), {id: window.uid(), date: target.date, meal: target.meal, ...entryData}]);
+      setSchedules(ss => [...ss.filter(s => !(s.date === target.date && s.meal === target.meal)), {id: safeUid(), date: target.date, meal: target.meal, ...entryData}]);
       setModal(false);
     };
 
@@ -140,14 +174,14 @@
       if (!srcEntry) { setMoveSource(null); return; }
       setSchedules(ss => {
         const filtered = ss.filter(s => !(s.date === fromDate && s.meal === fromMeal) && !(s.date === toDate && s.meal === toMeal));
-        return [...filtered, {...srcEntry, id: window.uid(), date: toDate, meal: toMeal}];
+        return [...filtered, {...srcEntry, id: safeUid(), date: toDate, meal: toMeal}];
       });
-      setmoveSource(null);
+      setMoveSource(null); // 💡 오타 수정 (moveSource -> setMoveSource)
     };
 
     return (
       <div>
-        {/* 🚫 재료 소진 알림 배너 */}
+        {/* 재료 소진 알림 배너 */}
         {disabledCount > 0 && (
           <div style={{background: "#fff0f0", border: "1.5px solid #ffb3b3", borderRadius: 12, marginBottom: 14, overflow: "hidden"}}>
             <div onClick={() => setBannerOpen(v => !v)} style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", cursor: "pointer"}}>
@@ -164,13 +198,12 @@
           </div>
         )}
 
-        {/* 💉 예방접종 주간 알림 배너 */}
+        {/* 예방접종 주간 알림 배너 */}
         {(() => {
           const birth = vaccData && vaccData.birth;
           if (!birth) return null;
-          const vaccDates = window.calcVaccDates(birth) || [];
+          const vaccDates = window.calcVaccDates ? (window.calcVaccDates(birth) || []) : [];
           const appts = (vaccData && vaccData.appointments) || [];
-          const today2 = window.todayStr();
           const weekAppts = vaccDates.filter(item => {
             const a = appts.find(x => x.vaccId === item.id);
             if (!a || !a.date || a.done) return false;
@@ -179,7 +212,7 @@
           const dueSoon = vaccDates.filter(item => {
             const a = appts.find(x => x.vaccId === item.id);
             if (a && a.done) return false;
-            return item.dateMin <= weekDates[6] && item.dateMax >= today2;
+            return item.dateMin <= weekDates[6] && item.dateMax >= today;
           });
           if (weekAppts.length === 0 && dueSoon.length === 0) return null;
           return (
@@ -190,7 +223,7 @@
                   <span style={{fontWeight: 700, fontSize: 12, color: "#48a", flex: 1}}>
                     이번 주 접종 예약: {weekAppts.map(v => {
                       const a = appts.find(x => x.vaccId === v.id);
-                      return v.abbr + (v.totalDoses > 1 ? " " + v.dose + "차" : "") + " (" + window.fmtMD(a.date) + ")";
+                      return v.abbr + (v.totalDoses > 1 ? " " + v.dose + "차" : "") + " (" + safeFmtMD(a.date) + ")";
                     }).join(", ")}
                   </span>
                 </div>
@@ -210,7 +243,7 @@
         {/* 주간 네비게이션 */}
         <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10}}>
           <button onClick={() => { const d = new Date(weekBase); d.setDate(d.getDate() - 7); setWeekBase(d.toISOString().slice(0, 10)); }} style={{background: "#f0f0f0", border: "none", borderRadius: 10, padding: "6px 14px", cursor: "pointer", fontSize: 18}}>&#8249;</button>
-          <span style={{fontWeight: 700, color: "#333", fontSize: 14}}>{window.fmtMD(weekDates[0])} ~ {window.fmtMD(weekDates[6])}</span>
+          <span style={{fontWeight: 700, color: "#333", fontSize: 14}}>{safeFmtMD(weekDates[0])} ~ {safeFmtMD(weekDates[6])}</span>
           <div style={{display: "flex", gap: 6, alignItems: "center"}}>
             <button onClick={() => { if (moveSource) setMoveSource(null); else setMoveSource("standby"); }}
               style={{background: moveSource ? "#fff3cd" : "#f0f0f0", border: "1.5px solid " + (moveSource ? "#f9a825" : "transparent"), borderRadius: 10, padding: "5px 10px", cursor: "pointer", fontSize: 13, color: moveSource ? "#b45309" : "#888", fontWeight: moveSource ? 700 : 400}}>
@@ -227,9 +260,9 @@
               <div/>
               {weekDates.map((d, i) => (
                 <div key={d} onClick={() => setDayView(d)} style={{textAlign: "center", fontSize: 11, fontWeight: 700, color: d === today ? "#7BC67E" : i >= 5 ? "#E78F8F" : "#888", padding: "4px 0", cursor: "pointer", background: dayView === d ? "#e8f8f0" : "transparent", borderRadius: 8}}>
-                  {WEEKDAYS[i]}<br/><span style={{fontSize: 13, color: d === today ? "#7BC67E" : "#555"}}>{window.fmtMD(d).slice(3)}</span>
+                  {WEEKDAYS[i]}<br/><span style={{fontSize: 13, color: d === today ? "#7BC67E" : "#555"}}>{safeFmtMD(d).includes('/') ? safeFmtMD(d) : safeFmtMD(d).slice(3)}</span>
                   {(() => {
-                    if (!vaccData || !vaccData.birth) return null;
+                    if (!vaccData || !vaccData.birth || !window.calcVaccDates) return null;
                     const dayDue = (window.calcVaccDates(vaccData.birth) || []).filter(item => {
                       const a = (vaccData.appointments || []).find(x => x.vaccId === item.id);
                       return a && !a.done && a.date === d;
@@ -249,10 +282,10 @@
                   const ent = getEntry(d, meal);
                   const rec = ent ? (ent.recipeId === "__custom__" ? {id: "__custom__", name: "직접 구성", color: "#7BC67E", ingredients: [], unitIds: []} : recipes.find(r => r.id === ent.recipeId)) : null;
                   const dis = rec && rec.id !== "__custom__" && (recipeStatus[rec.id] || {}).disabled;
-                  const vol = rec ? window.cubeVolume(rec, cubes, unitRecipes) : 0;
+                  const vol = rec && window.cubeVolume ? window.cubeVolume(rec, cubes, unitRecipes) : 0;
                   const entSlotTokens = ent && ent.slots ? Object.values(ent.slots).flat() : [];
                   const entChecked = ent && ent.checked ? ent.checked : [];
-                  const entTokens = entSlotTokens.length > 0 ? entSlotTokens : (rec ? window.ingredientsToTokens(rec.id === "__custom__" ? [] : rec.ingredients, rec.id === "__custom__" ? [] : rec.unitIds, unitRecipes).map(t => t.tokenKey) : []);
+                  const entTokens = entSlotTokens.length > 0 ? entSlotTokens : (rec && window.ingredientsToTokens ? window.ingredientsToTokens(rec.id === "__custom__" ? [] : rec.ingredients, rec.id === "__custom__" ? [] : rec.unitIds, unitRecipes).map(t => t.tokenKey) : []);
                   const checkedInTokens = entTokens.filter(tk => entChecked.includes(tk));
                   const allDone = entTokens.length > 0 && checkedInTokens.length === entTokens.length;
                   const partDone = entTokens.length > 0 && checkedInTokens.length > 0 && !allDone;
@@ -289,7 +322,7 @@
         </div>
 
         {/* 일별 식단 상세 내용 */}
-        <div style={{fontWeight: 700, fontSize: 14, color: "#333", marginBottom: 8}}>{window.fmtMD(dayView)} 식단</div>
+        <div style={{fontWeight: 700, fontSize: 14, color: "#333", marginBottom: 8}}>{safeFmtMD(dayView)} 식단</div>
         {MEALS.map(meal => {
           const ent = getEntry(dayView, meal);
           const rec = ent ? (ent.recipeId === "__custom__" ? {id: "__custom__", name: "직접 구성", color: "#7BC67E", ingredients: [], unitIds: []} : recipes.find(r => r.id === ent.recipeId)) : null;
@@ -309,11 +342,11 @@
           
           const currentIngredients = recWithIngs ? (recWithIngs.ingredients || []) : [];
           const currentUnitIds = recWithIngs ? (recWithIngs.unitIds || []) : [];
-          const parsedTokens = window.ingredientsToTokens(currentIngredients, currentUnitIds, unitRecipes);
+          const parsedTokens = window.ingredientsToTokens ? window.ingredientsToTokens(currentIngredients, currentUnitIds, unitRecipes) : [];
 
-          const slots = recWithIngs && dish
+          const slots = recWithIngs && dish && window.remapSlotsToDish
             ? window.remapSlotsToDish(rawSlots, dish.slots, currentIngredients)
-            : (recWithIngs ? window.rebuildSlotMap(rawSlots, currentIngredients) : rawSlots);
+            : (recWithIngs && window.rebuildSlotMap ? window.rebuildSlotMap(rawSlots, currentIngredients) : rawSlots);
           const hasSlots = dish && dish.slots && dish.slots.length > 0;
           const allIngNames = recWithIngs ? currentIngredients.map(i => i.name) : [];
           const checked = ent && ent.checked ? ent.checked : [];
@@ -376,14 +409,14 @@
                               {tokensToShow.map(({tokenKey, ingName}) => (
                                 <label key={tokenKey} onClick={e => e.stopPropagation()} style={{display: "flex", alignItems: "center", gap: 4, background: checked.includes(tokenKey) ? "#e8f8f0" : "#fff", border: "1px solid " + (checked.includes(tokenKey) ? "#7BC67E" : "#ddd"), borderRadius: 20, padding: "4px 10px", cursor: "pointer", fontSize: 12}}>
                                   <input type="checkbox" checked={checked.includes(tokenKey)} onChange={() => toggleDayCheck(tokenKey)} style={{cursor: "pointer", accentColor: "#7BC67E"}}/>
-                                  {window.tokenLabel(tokenKey, obj2)}
+                                  {window.tokenLabel ? window.tokenLabel(tokenKey, obj2) : ingName}
                                 </label>
                               ))}
                             </div>
                           </div>
                         );
                       })}
-                      {!(hasSlots && Object.values(slots).flat().length > 0) && (ent.customIngredients || []).length > 0 && (
+                      {!(hasSlots && Object.values(slots).flat().length > 0) && (ent.customIngredients || []).length > 0 && window.ingredientsToTokens && (
                         <div>
                           <div style={{fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 6}}>재료 체크</div>
                           <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
@@ -430,19 +463,19 @@
                               {tokensToShow.map(({tokenKey, ingName}) => (
                                 <label key={tokenKey} onClick={e => e.stopPropagation()} style={{display: "flex", alignItems: "center", gap: 4, background: checked.includes(tokenKey) ? "#e8f8f0" : "#fff", border: "1px solid " + (checked.includes(tokenKey) ? "#7BC67E" : "#ddd"), borderRadius: 20, padding: "4px 10px", cursor: "pointer", fontSize: 12}}>
                                   <input type="checkbox" checked={checked.includes(tokenKey)} onChange={() => toggleDayCheck(tokenKey)} style={{cursor: "pointer", accentColor: "#7BC67E"}}/>
-                                  {window.tokenLabel(tokenKey, parsedTokens)}
+                                  {window.tokenLabel ? window.tokenLabel(tokenKey, parsedTokens) : ingName}
                                 </label>
                               ))}
                             </div>
                           </div>
                         );
                       })}
-                      {!(hasSlots && Object.values(slots).flat().length > 0) && allIngNames.length > 0 && (
+                      {!(hasSlots && Object.values(slots).flat().length > 0) && allIngNames.length > 0 && window.ingredientsToTokens && (
                         <div>
                           <div style={{fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 6}}>재료 체크</div>
                           <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
                             {window.ingredientsToTokens(currentIngredients, currentUnitIds, unitRecipes).map(({tokenKey, ingName}) => {
-                              const lbl = window.tokenLabel(tokenKey, window.ingredientsToTokens(currentIngredients, currentUnitIds, unitRecipes));
+                              const lbl = window.tokenLabel ? window.tokenLabel(tokenKey, window.ingredientsToTokens(currentIngredients, currentUnitIds, unitRecipes)) : ingName;
                               return (
                                 <label key={tokenKey} onClick={e => e.stopPropagation()} style={{display: "flex", alignItems: "center", gap: 4, background: checked.includes(tokenKey) ? "#e8f8f0" : "#f5f5f5", border: "1px solid " + (checked.includes(tokenKey) ? "#7BC67E" : "#ddd"), borderRadius: 20, padding: "3px 10px", cursor: "pointer", fontSize: 12}}>
                                   <input type="checkbox" checked={checked.includes(tokenKey)} onChange={() => toggleDayCheck(tokenKey)} style={{cursor: "pointer", accentColor: "#7BC67E"}}/>
@@ -462,7 +495,7 @@
         })}
 
         {/* 일정 추가 / 상세 모달 */}
-        <window.Overlay open={modal} onClose={() => setModal(false)} wide title={target.date ? window.fmtFull(target.date) + " " + MEAL_ICON[target.meal] + " " + target.meal : ""}>
+        <window.Overlay open={modal} onClose={() => setModal(false)} wide title={target.date ? safeFmtFull(target.date) + " " + MEAL_ICON[target.meal] + " " + target.meal : ""}>
           <div style={{marginBottom: 12, position: "relative"}}>
             <div style={{fontSize: 12, color: "#888", marginBottom: 5}}>레시피 선택</div>
             <div onClick={() => { setRdrop(o => { if (!o) setRdropSearch(""); return !o; }); setDdrop(false); }} style={{padding: "10px 14px", border: "1.5px solid #e8e8e8", borderRadius: 12, cursor: "pointer", background: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
@@ -500,7 +533,7 @@
                       {list.map((r, ri) => {
                         const st = recipeStatus[r.id] || {disabled: false, outOfStock: []};
                         return (
-                          <div key={r.id} onClick={() => pickRecipe(r.id, list)} style={{padding: "10px 14px", cursor: st.disabled ? "not-allowed" : "pointer", background: form.recipeId === r.id ? "#f0fcf4" : st.disabled ? "#fcfcfc" : "#fff", borderBottom: "1px solid #f5f5f5", display: "flex", alignItems: "center", justifycontent: "space-between", opacity: st.disabled ? 0.5 : 1}}>
+                          <div key={r.id} onClick={() => pickRecipe(r.id, list)} style={{padding: "10px 14px", cursor: st.disabled ? "not-allowed" : "pointer", background: form.recipeId === r.id ? "#f0fcf4" : st.disabled ? "#fcfcfc" : "#fff", borderBottom: "1px solid #f5f5f5", display: "flex", alignItems: "center", justifyContent: "space-between", opacity: st.disabled ? 0.5 : 1}}>
                             <span style={{display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: st.disabled ? "#aaa" : "#333", fontWeight: form.recipeId === r.id ? 700 : 400}}>
                               <span style={{width: 8, height: 8, borderRadius: "50%", background: r.color}}/>
                               {r.name} {r.favorite && "⭐"}
@@ -562,7 +595,7 @@
                               const next = f.customIngredients.map(ci => ci.name === c.name ? {...ci, count: ci.count - 1} : ci).filter(ci => ci.count > 0);
                               return {...f, customIngredients: next};
                             });
-                          }} style={{border: "none", background: "#e0e0e0", borderRadius: "50%", width: 16, height: 16, cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifycontent: "center"}}>-</button>
+                          }} style={{border: "none", background: "#e0e0e0", borderRadius: "50%", width: 16, height: 16, cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center"}}>-</button>
                         )}
                         {count > 0 && <span style={{fontWeight: 700, color: "#4a9"}}>{count}</span>}
                         <button onClick={() => {
@@ -574,7 +607,7 @@
                               : [...f.customIngredients, {name: c.name, count: 1}];
                             return {...f, customIngredients: next};
                           });
-                        }} disabled={inStock <= 0} style={{border: "none", background: count >= inStock ? "#ccc" : "#7BC67E", color: "#fff", borderRadius: "50%", width: 16, height: 16, cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifycontent: "center"}}>+</button>
+                        }} disabled={inStock <= 0} style={{border: "none", background: count >= inStock ? "#ccc" : "#7BC67E", color: "#fff", borderRadius: "50%", width: 16, height: 16, cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center"}}>+</button>
                       </div>
                     );
                   })}
@@ -626,12 +659,12 @@
                 const assignedUnitId = currentSlotUnits[slot];
                 const assignedUnit = assignedUnitId && unitRecipes ? unitRecipes.find(u => u.id === assignedUnitId) : null;
 
-                const builtTokens = window.ingredientsToTokens(selRec.ingredients || [], isCustomMode ? [] : (selRec.unitIds || []), unitRecipes);
+                const builtTokens = window.ingredientsToTokens ? window.ingredientsToTokens(selRec.ingredients || [], isCustomMode ? [] : (selRec.unitIds || []), unitRecipes) : [];
 
                 if (editSlots) {
                   return (
                     <div key={slot} style={{marginBottom: 8, background: "#fff", padding: 8, borderRadius: 8, border: "1.5px solid #e0e0e0"}}>
-                      <div style={{fontSize: 11, fontWeight: 700, color: "#444", marginBottom: 6, display: "flex", justifycontent: "space-between", alignItems: "center"}}>
+                      <div style={{fontSize: 11, fontWeight: 700, color: "#444", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                         <span>📌 {slot}</span>
                         {assignedUnit && <span style={{background: assignedUnit.color + "22", color: assignedUnit.color, fontSize: 10, padding: "1px 6px", borderRadius: 6}}>{assignedUnit.name}</span>}
                       </div>
@@ -682,7 +715,7 @@
                                 return {...f, [targetField]: nextMap};
                               });
                             }} style={{background: active ? "#7BC67E" : "#f5f5f5", color: active ? "#fff" : "#555", border: "none", borderRadius: 4, padding: "3px 8px", fontSize: 10, cursor: "pointer"}}>
-                              {window.tokenLabel(tk.tokenKey, builtTokens)}
+                              {window.tokenLabel ? window.tokenLabel(tk.tokenKey, builtTokens) : tk.ingName}
                             </button>
                           );
                         })}
@@ -697,7 +730,7 @@
                   <div key={slot} style={{fontSize: 11, color: "#444", background: "#fff", padding: "4px 8px", borderRadius: 6, marginBottom: 4, display: "flex", alignItems: "center", gap: 6}}>
                     <span style={{fontWeight: 700, color: "#666"}}>• {slot}:</span>
                     {assignedUnit && <span style={{fontWeight: 600, color: assignedUnit.color}}>[🍱 {assignedUnit.name}]</span>}
-                    <span>{validTokens.map(vt => window.tokenLabel(vt.tokenKey, builtTokens)).join(", ")}</span>
+                    <span>{validTokens.map(vt => window.tokenLabel ? window.tokenLabel(vt.tokenKey, builtTokens) : vt.ingName).join(", ")}</span>
                   </div>
                 );
               })}
@@ -734,6 +767,5 @@
     );
   }
 
-  // 💡 전역 스코프에 안전하게 바인딩
   window.ScheduleTab = ScheduleTab;
 })();
