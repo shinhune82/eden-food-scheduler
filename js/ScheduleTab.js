@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+const { useState } = React;
 
 function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, vaccData, stock, unitRecipes }) {
   // 변수 및 상태 선언 최상단 정렬
