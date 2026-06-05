@@ -157,7 +157,8 @@ function calcStock(cubes, schedules, recipes) {
     if (rec) {
       rec.ingredients.forEach(ing => { used[ing.name] = (used[ing.name]||0) + (Number(ing.cubeCount)||0); });
       (rec.unitIds||[]).forEach(uId => {
-        const u = (window._unitRecipes||[]).find(x=>x.id===uId);
+        const unitRecipesSource = (typeof window._unitRecipes !== 'undefined') ? window._unitRecipes : [];
+        const u = unitRecipesSource.find(x => x.id === uId);
         if(u) u.ingredients.forEach(ing => { used[ing.name] = (used[ing.name]||0) + (Number(ing.cubeCount)||0); });
       });
     }
