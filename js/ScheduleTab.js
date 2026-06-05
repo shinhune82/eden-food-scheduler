@@ -491,7 +491,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                     </div>
                   )}
                   {showFav && <div style={{padding:"4px 14px",fontSize:10,fontWeight:700,color:"#f9a825",background:"#fffde7",borderBottom:"1px solid #fff9c4"}}>⭐ 즐겨찾기</div>}
-{list.map((r,ri)=>{
+                  {list.map((r,ri)=>{
                     const st = recipeStatus[r.id]||{disabled:false,outOfStock:[]};
                     return (
                       <div key={r.id} onClick={()=>pickRecipe(r.id, list)} style={{padding:"10px 14px",cursor:st.disabled?"not-allowed":"pointer",background:form.recipeId===r.id?"#f0fcf4":st.disabled?"#fcfcfc":"#fff",borderBottom:"1px solid #f5f5f5",display:"flex",alignItems:"center",justifyContent:"space-between",opacity:st.disabled?0.5:1}}>
