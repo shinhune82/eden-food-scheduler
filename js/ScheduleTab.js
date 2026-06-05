@@ -977,7 +977,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
       />
     </div>
     </div>
-    </div>
   );
 }
 
