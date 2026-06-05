@@ -459,23 +459,26 @@
                     <div>
                       {hasSlots && Object.values(slots).flat().length > 0 && dish.slots.map((slot, si) => {
                         const slotTokens = (slots[slot] || []);
-                        const tokensToShow = slotTokens.map(tk => {
-                          const nameFromToken = tk.split("__g")[0];
-                          return { tokenKey: tk, ingName: nameFromToken };  // 필터 없이 그냥 통과
-                         }).filter(Boolean);
-
-                        if (tokensToShow.length === 0) return null;
+                        // 저장된 슬롯 토큰은 검증 없이 표시 (필터 조건으로 슬롯이 사라지는 버그 수정)
+                        const tokensToShow = slotTokens.map(tk => ({
+                          tokenKey: tk,
+                          ingName: tk.split("__g")[0]
+                        }));
+                      
+                        const assignedUnitId = ent.slotUnits && ent.slotUnits[slot];
+                        const assignedUnit = assignedUnitId && unitRecipes ? unitRecipes.find(u => u.id === assignedUnitId) : null;
+                      
+                        if (tokensToShow.length === 0 && !assignedUnit) return null;
                         const allChk = tokensToShow.every(t => checked.includes(t.tokenKey));
                         return (
                           <div key={slot} style={{marginBottom: 8, borderRadius: 12, border: "1.5px solid " + (allChk ? "#7BC67E" : "#e0e0e0"), overflow: "hidden"}}>
                             <div style={{background: allChk ? "#e8f8f0" : "#f5f5f5", padding: "5px 12px", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                               <span style={{fontSize: 11, fontWeight: 700, color: "#555"}}>📌 {slot}</span>
-                              {(() => {
-                                const sUnitId = ent.slotUnits && ent.slotUnits[slot];
-                                const sUnit = sUnitId && unitRecipes ? unitRecipes.find(u => u.id === sUnitId) : null;
-                                if (!sUnit) return null;
-                                return <span style={{fontSize: 10, background: sUnit.color + "33", borderRadius: 10, padding: "1px 6px", color: "#555", fontWeight: 600}}>{sUnit.name}</span>;
-                              })()}
+                              {assignedUnit && (
+                                <span style={{fontSize: 10, background: assignedUnit.color + "33", borderRadius: 10, padding: "1px 6px", color: assignedUnit.color, fontWeight: 600}}>
+                                  🍱 {assignedUnit.name}
+                                </span>
+                              )}
                               <span style={{fontSize: 11, color: allChk ? "#4a9" : "#aaa", fontWeight: 600}}>{tokensToShow.filter(t => checked.includes(t.tokenKey)).length}/{tokensToShow.length}</span>
                             </div>
                             <div style={{padding: "8px 10px", display: "flex", flexWrap: "wrap", gap: 6}}>
