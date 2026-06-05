@@ -143,7 +143,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         <div style={{background:"#fff0f0",border:"1.5px solid #ffb3b3",borderRadius:12,marginBottom:14,overflow:"hidden"}}>
           <div onClick={()=>setBannerOpen(v=>!v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",cursor:"pointer"}}>
             <span style={{fontWeight:700,fontSize:13,color:"#c00"}}>🚫 재료 소진 {disabledCount}개</span>
-            <span style={{fontSize:11,color:"#e55}}>{bannerOpen?"▲ 닫기":"▼ 목록 보기"}</span>
+            <span style={{fontSize:11,color:"#e55"}}>{bannerOpen?"▲ 닫기":"▼ 목록 보기"}</span>
           </div>
           {bannerOpen && (
             <div style={{fontSize:11,color:"#e55",padding:"0 14px 10px",lineLineHeight:1.8}}>
