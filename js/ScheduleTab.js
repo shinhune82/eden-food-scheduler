@@ -160,7 +160,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
       {(()=>{
         const birth = vaccData && vaccData.birth;
         if (!birth) return null;
-        const vaccDates = calcVaccDates(birth);
+        const vaccDates = calcVaccDates(birth) || [];
         const appts = (vaccData && vaccData.appointments) || [];
         const today2 = todayStr();
         const weekAppts = vaccDates.filter(item => {
@@ -222,7 +222,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 {WEEKDAYS[i]}<br/><span style={{fontSize:13,color:d===today?"#7BC67E":"#555"}}>{fmtMD(d).slice(3)}</span>
                 {(()=>{
                   if (!vaccData || !vaccData.birth) return null;
-                  const dayDue = calcVaccDates(vaccData.birth).filter(item => {
+                  const dayDue = (calcVaccDates(vaccData.birth) || []).filter(item => {
                     const a = (vaccData.appointments||[]).find(x=>x.vaccId===item.id);
                     return a && !a.done && a.date === d;
                   });
