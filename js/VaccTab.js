@@ -1,3 +1,5 @@
+const { useState, useEffect, useCallback, useMemo } = React;
+
 function calcVaccDates(birthStr) {
   if (!birthStr) return [];
   const birth = new Date(birthStr);
