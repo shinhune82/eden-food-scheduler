@@ -5,7 +5,6 @@
   const MEAL_BG = { "아침": "#fffae6", "점심": "#e6f7ff", "간식": "#f9f0ff", "저녁": "#f6fff5" };
   const SLOT_COLORS = ["#fff1f0", "#f5f5f5", "#e6f7ff", "#f6ffed", "#fff7e6"];
 
-  // 💡 window에 유틸 함수가 없을 때를 대비한 내부 방어용 대안 함수(Fallback) 정의
   const safeFmtMD = (dateStr) => {
     if (window.fmtMD) return window.fmtMD(dateStr);
     if (!dateStr) return "";
@@ -27,7 +26,7 @@
     if (window.getWeekDates) return window.getWeekDates(baseDate);
     const current = new Date(baseDate);
     const day = current.getDay();
-    const distance = day === 0 ? -6 : 1 - day; // 월요일 기준 주간 날짜 배열 생성
+    const distance = day === 0 ? -6 : 1 - day;
     const monday = new Date(current.setDate(current.getDate() + distance));
     const dates = [];
     for (let i = 0; i < 7; i++) {
@@ -44,7 +43,6 @@
   };
 
   function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, vaccData, stock, unitRecipes }) {
-    // 💡 중복 선언 에러 방지를 위해 React 스코프 직접 호출 및 방어 함수 적용
     const [weekBase, setWeekBase] = React.useState(safeTodayStr());
     const [modal, setModal] = React.useState(false);
     const [target, setTarget] = React.useState({date:"", meal:""});
@@ -176,7 +174,7 @@
         const filtered = ss.filter(s => !(s.date === fromDate && s.meal === fromMeal) && !(s.date === toDate && s.meal === toMeal));
         return [...filtered, {...srcEntry, id: safeUid(), date: toDate, meal: toMeal}];
       });
-      setMoveSource(null); // 💡 오타 수정 (moveSource -> setMoveSource)
+      setMoveSource(null);
     };
 
     return (
@@ -328,7 +326,9 @@
           const rec = ent ? (ent.recipeId === "__custom__" ? {id: "__custom__", name: "직접 구성", color: "#7BC67E", ingredients: [], unitIds: []} : recipes.find(r => r.id === ent.recipeId)) : null;
           const dis = rec && rec.id !== "__custom__" && (recipeStatus[rec.id] || {}).disabled;
           const dish = ent ? dishes.find(d => d.id === ent.dishId) : null;
-          const customIngList = (ent && ent.recipeId === "__custom__")
+          const isExCustom = ent && ent.recipeId === "__custom__";
+
+          const customIngList = isExCustom
             ? [
                 ...(ent.customIngredients || []).map(ci => ({name: ci.name, cubeCount: ci.count})),
                 ...(ent.customUnits || []).flatMap(uId => {
@@ -337,7 +337,7 @@
                 })
               ]
             : null;
-          const recWithIngs = rec && rec.id === "__custom__" ? {...rec, ingredients: customIngList || []} : rec;
+          const recWithIngs = rec && isExCustom ? {...rec, ingredients: customIngList || []} : rec;
           const rawSlots = ent && ent.slots && Object.values(ent.slots).flat().length > 0 ? ent.slots : (recWithIngs && recWithIngs.slotMap ? recWithIngs.slotMap : {});
           
           const currentIngredients = recWithIngs ? (recWithIngs.ingredients || []) : [];
@@ -382,56 +382,80 @@
               )}
               {ent && rec && (
                 <div style={{padding: "10px 16px"}}>
-                  {rec.id === "__custom__" && (
+                  {isExCustom && (
                     <div>
-                      {(ent.customUnits || []).length > 0 && (
-                        <div style={{marginBottom: 8, display: "flex", flexWrap: "wrap", gap: 6}}>
-                          {(ent.customUnits || []).map((uId, uidx) => {
-                            const u = (unitRecipes || []).find(x => x.id === uId);
-                            if (!u) return null;
-                            return <span key={uidx} style={{background: u.color + "22", border: "1.5px solid " + u.color + "88", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600}}>🍱 {u.name}</span>;
-                          })}
-                        </div>
-                      )}
+                      {/* 💡 [수정] 직접구성 시 세트(유닛) 배지가 식판 내부 슬롯 단위로 들어가도록 하단 식판 루프 내부로 병합 및 상단 부유구문 제거 */}
                       {hasSlots && Object.values(slots).flat().length > 0 && dish.slots.map((slot, si) => {
                         const slotTokens = (slots[slot] || []);
                         const tokensToShow = slotTokens.map(tk => ({tokenKey: tk, ingName: tk.split("__g")[0]})).filter(Boolean);
-                        if (tokensToShow.length === 0) return null;
+                        
+                        // 현재 슬롯에 맵핑 배정된 유닛 정보 확인
+                        const assignedUnitId = ent.slotUnits && ent.slotUnits[slot];
+                        const assignedUnit = assignedUnitId && unitRecipes ? unitRecipes.find(u => u.id === assignedUnitId) : null;
+
+                        if (tokensToShow.length === 0 && !assignedUnit) return null;
+                        
                         const obj2 = Object.values(slots).flat().map(tk => ({tokenKey: tk, ingName: tk.split("__g")[0]}));
-                        const allChk2 = tokensToShow.every(t => checked.includes(t.tokenKey));
+                        const allChk2 = tokensToShow.length > 0 ? tokensToShow.every(t => checked.includes(t.tokenKey)) : true;
+                        
                         return (
                           <div key={slot} style={{marginBottom: 8, borderRadius: 12, border: "1.5px solid " + (allChk2 ? "#7BC67E" : "#e0e0e0"), overflow: "hidden"}}>
                             <div style={{background: allChk2 ? "#e8f8f0" : "#f5f5f5", padding: "5px 12px", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
                               <span style={{fontSize: 11, fontWeight: 700, color: "#555"}}>📌 {slot}</span>
-                              <span style={{fontSize: 11, color: allChk2 ? "#4a9" : "#aaa", fontWeight: 600}}>{tokensToShow.filter(t => checked.includes(t.tokenKey)).length}/{tokensToShow.length}</span>
+                              <div style={{display: "flex", alignItems: "center", gap: 6}}>
+                                {assignedUnit && (
+                                  <span style={{background: assignedUnit.color + "22", color: assignedUnit.color, border: "1px solid " + assignedUnit.color + "55", borderRadius: 10, padding: "1px 8px", fontSize: 10, fontWeight: 700}}>
+                                    🍱 {assignedUnit.name}
+                                  </span>
+                                )}
+                                {tokensToShow.length > 0 && (
+                                  <span style={{fontSize: 11, color: allChk2 ? "#4a9" : "#aaa", fontWeight: 600}}>{tokensToShow.filter(t => checked.includes(t.tokenKey)).length}/{tokensToShow.length}</span>
+                                )}
+                              </div>
                             </div>
-                            <div style={{padding: "8px 10px", display: "flex", flexWrap: "wrap", gap: 6}}>
-                              {tokensToShow.map(({tokenKey, ingName}) => (
-                                <label key={tokenKey} onClick={e => e.stopPropagation()} style={{display: "flex", alignItems: "center", gap: 4, background: checked.includes(tokenKey) ? "#e8f8f0" : "#fff", border: "1px solid " + (checked.includes(tokenKey) ? "#7BC67E" : "#ddd"), borderRadius: 20, padding: "4px 10px", cursor: "pointer", fontSize: 12}}>
-                                  <input type="checkbox" checked={checked.includes(tokenKey)} onChange={() => toggleDayCheck(tokenKey)} style={{cursor: "pointer", accentColor: "#7BC67E"}}/>
-                                  {window.tokenLabel ? window.tokenLabel(tokenKey, obj2) : ingName}
-                                </label>
-                              ))}
-                            </div>
+                            {tokensToShow.length > 0 && (
+                              <div style={{padding: "8px 10px", display: "flex", flexWrap: "wrap", gap: 6}}>
+                                {tokensToShow.map(({tokenKey, ingName}) => (
+                                  <label key={tokenKey} onClick={e => e.stopPropagation()} style={{display: "flex", alignItems: "center", gap: 4, background: checked.includes(tokenKey) ? "#e8f8f0" : "#fff", border: "1px solid " + (checked.includes(tokenKey) ? "#7BC67E" : "#ddd"), borderRadius: 20, padding: "4px 10px", cursor: "pointer", fontSize: 12}}>
+                                    <input type="checkbox" checked={checked.includes(tokenKey)} onChange={() => toggleDayCheck(tokenKey)} style={{cursor: "pointer", accentColor: "#7BC67E"}}/>
+                                    {window.tokenLabel ? window.tokenLabel(tokenKey, obj2) : ingName}
+                                  </label>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
-                      {!(hasSlots && Object.values(slots).flat().length > 0) && (ent.customIngredients || []).length > 0 && window.ingredientsToTokens && (
+                      {/* 식판 슬롯 매핑 정보가 없을 때의 예외 처리 구문 */}
+                      {!(hasSlots && Object.values(slots).flat().length > 0) && (
                         <div>
-                          <div style={{fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 6}}>재료 체크</div>
-                          <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
-                            {window.ingredientsToTokens((ent.customIngredients || []).map(ci => ({name: ci.name, cubeCount: ci.count}))).map(({tokenKey, ingName}) => (
-                              <label key={tokenKey} onClick={e => e.stopPropagation()} style={{display: "flex", alignItems: "center", gap: 4, background: checked.includes(tokenKey) ? "#e8f8f0" : "#f5f5f5", border: "1px solid " + (checked.includes(tokenKey) ? "#7BC67E" : "#ddd"), borderRadius: 20, padding: "3px 10px", cursor: "pointer", fontSize: 12}}>
-                                <input type="checkbox" checked={checked.includes(tokenKey)} onChange={() => toggleDayCheck(tokenKey)} style={{cursor: "pointer", accentColor: "#7BC67E"}}/>
-                                {ingName}
-                              </label>
-                            ))}
-                          </div>
+                          {(ent.customUnits || []).length > 0 && (
+                            <div style={{marginBottom: 8, display: "flex", flexWrap: "wrap", gap: 6}}>
+                              {(ent.customUnits || []).map((uId, uidx) => {
+                                const u = (unitRecipes || []).find(x => x.id === uId);
+                                if (!u) return null;
+                                return <span key={uidx} style={{background: u.color + "22", border: "1.5px solid " + u.color + "88", borderRadius: 20, padding: "3px 10px", fontSize: 12, fontWeight: 600}}>🍱 {u.name}</span>;
+                              })}
+                            </div>
+                          )}
+                          {(ent.customIngredients || []).length > 0 && window.ingredientsToTokens && (
+                            <div>
+                              <div style={{fontSize: 11, fontWeight: 700, color: "#888", marginBottom: 6}}>재료 체크</div>
+                              <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
+                                {window.ingredientsToTokens((ent.customIngredients || []).map(ci => ({name: ci.name, cubeCount: ci.count}))).map(({tokenKey, ingName}) => (
+                                  <label key={tokenKey} onClick={e => e.stopPropagation()} style={{display: "flex", alignItems: "center", gap: 4, background: checked.includes(tokenKey) ? "#e8f8f0" : "#f5f5f5", border: "1px solid " + (checked.includes(tokenKey) ? "#7BC67E" : "#ddd"), borderRadius: 20, padding: "3px 10px", cursor: "pointer", fontSize: 12}}>
+                                    <input type="checkbox" checked={checked.includes(tokenKey)} onChange={() => toggleDayCheck(tokenKey)} style={{cursor: "pointer", accentColor: "#7BC67E"}}/>
+                                    {ingName}
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   )}
-                  {rec.id !== "__custom__" && (
+                  {!isExCustom && rec.id !== "__custom__" && (
                     <div>
                       {hasSlots && Object.values(slots).flat().length > 0 && dish.slots.map((slot, si) => {
                         const slotTokens = (slots[slot] || []);
@@ -533,7 +557,7 @@
                       {list.map((r, ri) => {
                         const st = recipeStatus[r.id] || {disabled: false, outOfStock: []};
                         return (
-                          <div key={r.id} onClick={() => pickRecipe(r.id, list)} style={{padding: "10px 14px", cursor: st.disabled ? "not-allowed" : "pointer", background: form.recipeId === r.id ? "#f0fcf4" : st.disabled ? "#fcfcfc" : "#fff", borderBottom: "1px solid #f5f5f5", display: "flex", alignItems: "center", justifyContent: "space-between", opacity: st.disabled ? 0.5 : 1}}>
+                          <div key={r.id} onClick={() => pickRecipe(r.id, list)} style={{padding: "10px 14px", cursor: st.disabled ? "not-allowed" : "pointer", background: form.recipeId === r.id ? "#f0fcf4" : st.disabled ? "#fcfcfc" : "#fff", borderBottom: "1px solid #f5f5f5", display: "flex", alignItems: "center", justifycontent: "space-between", opacity: st.disabled ? 0.5 : 1}}>
                             <span style={{display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: st.disabled ? "#aaa" : "#333", fontWeight: form.recipeId === r.id ? 700 : 400}}>
                               <span style={{width: 8, height: 8, borderRadius: "50%", background: r.color}}/>
                               {r.name} {r.favorite && "⭐"}
