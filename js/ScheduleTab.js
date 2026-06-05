@@ -385,14 +385,14 @@
                   {isExCustom && (
                     <div>
                       {/* 💡 [수정] 직접구성 시 세트(유닛) 배지가 식판 내부 슬롯 단위로 들어가도록 하단 식판 루프 내부로 병합 및 상단 부유구문 제거 */}
-                      {hasSlots && Object.values(slots).flat().length > 0 && dish.slots.map((slot, si) => {
+                      {hasSlots && (Object.values(slots).flat().length > 0 || (ent.slotUnits && Object.keys(ent.slotUnits).length > 0)) && dish.slots.map((slot, si) => {
                         const slotTokens = (slots[slot] || []);
                         const tokensToShow = slotTokens.map(tk => ({tokenKey: tk, ingName: tk.split("__g")[0]})).filter(Boolean);
                         
                         // 현재 슬롯에 맵핑 배정된 유닛 정보 확인
                         const assignedUnitId = ent.slotUnits && ent.slotUnits[slot];
                         const assignedUnit = assignedUnitId && unitRecipes ? unitRecipes.find(u => u.id === assignedUnitId) : null;
-
+                      
                         if (tokensToShow.length === 0 && !assignedUnit) return null;
                         
                         const obj2 = Object.values(slots).flat().map(tk => ({tokenKey: tk, ingName: tk.split("__g")[0]}));
@@ -609,8 +609,11 @@
                     const count = current ? current.count : 0;
                     const inStock = stock && stock[c.name] ? stock[c.name] : 0;
                     return (
-                      <div key={c.name} style={{display: "flex", alignItems: "center", gap: 4, background: "#f5f5f5", borderRadius: 20, padding: "2px 8px", fontSize: 11}}>
-                        <span style={{fontWeight: 500, color: inStock <= 0 ? "#aaa" : "#333"}}>{c.name}({inStock})</span>
+                      <div key={c.name} style={{display: "flex", alignItems: "center", gap: 4, background: inStock <= 0 ? "#f0f0f0" : (count > 0 ? "#e8f8f0" : "#f5f5f5"), borderRadius: 20, padding: "3px 10px", fontSize: 11, border: count > 0 ? "1.5px solid #7BC67E" : "1px solid #e0e0e0", minWidth: 0}}>
+                        <span style={{fontWeight: 600, color: inStock <= 0 ? "#bbb" : (count > 0 ? "#2a7a3a" : "#333"), whiteSpace: "nowrap"}}>
+                          {c.name}
+                          <span style={{fontWeight: 400, color: inStock <= 0 ? "#ccc" : "#888", fontSize: 10}}> ({inStock}개)</span>
+                        </span>
                         {count > 0 && (
                           <button onClick={() => {
                             setForm(f => {
