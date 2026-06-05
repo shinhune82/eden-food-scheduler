@@ -24,8 +24,8 @@
     const [bannerOpen, setBannerOpen] = React.useState(false);
 
     // 전역 유틸리티 함수는 window 객체에서 안전하게 가져와 사용
-    const weekDates = window.getWeekDates(weekBase);
-    const today = window.todayStr();
+    const weekDates = window.getWeekDates ? window.getWeekDates(weekBase) : [];
+    const today = window.todayStr ? window.todayStr() : new Date().toISOString().split('T')[0];
     const getEntry = (date, meal) => schedules.find(s => s.date === date && s.meal === meal);
 
     const isCustomMode = form.recipeId === "__custom__";
