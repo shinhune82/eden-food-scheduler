@@ -290,3 +290,9 @@ function IngSearch({ value, onChange, cubes }) {
   );
 }
 window.IngSearch = IngSearch;
+
+window.useState = React.useState;
+window.useEffect = React.useEffect;
+window.useCallback = React.useCallback;
+window.useMemo = React.useMemo;
+window.useRef = React.useRef;
