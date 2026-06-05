@@ -976,6 +976,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         onCancel={()=>setSchedConfirmDel(false)}
       />
     </div>
+    }}}
   );
 }
 
