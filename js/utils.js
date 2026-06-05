@@ -1,6 +1,16 @@
+// ⚙️ 1. Babel standalone 전역 꼬임 방지를 위해 파일 개별 선언으로 안전하게 변경
+const useState = React.useState;
+const useEffect = React.useEffect;
+const useCallback = React.useCallback;
 
-const { useState, useEffect, useCallback } = React;
+// ⚙️ 2. [★치명적 에러 원인] 누락되었던 오늘 날짜(YYYY-MM-DD) 구하는 함수 추가 및 전역화
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+window.todayStr = todayStr; // 전역 바인딩
 
+// ⚙️ 3. 기존 utils 함수들 및 전역 바인딩
 function ingredientsToTokens(ingredients) {
   let gi = 0;
   return ingredients.flatMap(ing =>
@@ -10,6 +20,7 @@ function ingredientsToTokens(ingredients) {
     })
   );
 }
+window.ingredientsToTokens = ingredientsToTokens;
 
 function rebuildSlotMap(slotMap, ingredients) {
   let gi = 0;
@@ -39,16 +50,12 @@ function rebuildSlotMap(slotMap, ingredients) {
   }
   return result;
 }
+window.rebuildSlotMap = rebuildSlotMap;
 
-// ★ 버그 수정: dish 슬롯 이름이 바뀐 경우(예: "냄비용"→"냄비") 저장된 슬롯 키를 현재 dish 슬롯에 재매핑
 function remapSlotsToDish(slots, dishSlots, ingredients) {
-  // 1단계: tokenKey 재생성
   const rebuilt = rebuildSlotMap(slots, ingredients);
-  // 2단계: 현재 dish 슬롯 이름과 이미 일치하면 그대로 반환
   const hasMatch = dishSlots.some(s => rebuilt[s] && rebuilt[s].length > 0);
   if (hasMatch) return rebuilt;
-  // 3단계: 키 이름 불일치 → 저장 순서 기준으로 dish 슬롯에 재배분
-  // (예: {냄비용:[...], 밥:[...]} → dish슬롯[냄비,밥,...] 에 순서대로 매핑)
   const savedKeys = Object.keys(slots);
   const result = {};
   savedKeys.forEach((savedKey, i) => {
@@ -60,8 +67,9 @@ function remapSlotsToDish(slots, dishSlots, ingredients) {
   });
   return result;
 }
+window.remapSlotsToDish = remapSlotsToDish;
 
-// 삭제 확인 다이얼로그
+// 삭제 확인 다이얼로그 (전역 컴포넌트화)
 function ConfirmDelete({ open, message, onConfirm, onCancel }) {
   if (!open) return null;
   return (
@@ -78,6 +86,7 @@ function ConfirmDelete({ open, message, onConfirm, onCancel }) {
     </div>
   );
 }
+window.ConfirmDelete = ConfirmDelete;
 
 function tokenLabel(tokenKey, allTokens) {
   const ingName = tokenKey.split("__g")[0];
@@ -86,9 +95,12 @@ function tokenLabel(tokenKey, allTokens) {
   const pos = sameGroup.findIndex(t => t.tokenKey === tokenKey) + 1;
   return ingName + " (" + pos + "/" + sameGroup.length + ")";
 }
+window.tokenLabel = tokenLabel;
 
 const RECIPE_COLORS = ["#FFB347","#7BC67E","#F4A261","#74B5F5","#E78F8F","#B5A4F5","#F5D07A","#7ADAD5"];
 const CAT_COLORS = ["#FFE0A3","#C8F0C0","#F4C8C8","#FFD6E8","#E8E8E8","#C8E8FF","#E8D4F8","#FFECC8"];
+window.RECIPE_COLORS = RECIPE_COLORS;
+window.CAT_COLORS = CAT_COLORS;
 
 const INIT_CATEGORIES = [
   {id:"cat1",name:"곡류",color:"#FFE0A3"},
@@ -116,6 +128,10 @@ const INIT_CUBES = [
   {id:"c6",ingredient:"애호박",count:4,madeDate:"2026-02-25",weightG:12,categoryId:"cat2"},
   {id:"c7",ingredient:"쌀",count:20,madeDate:"2026-02-20",weightG:20,categoryId:"cat1"},
 ];
+window.INIT_CATEGORIES = INIT_CATEGORIES;
+window.INIT_DISHES = INIT_DISHES;
+window.INIT_RECIPES = INIT_RECIPES;
+window.INIT_CUBES = INIT_CUBES;
 
 function cubeVolume(recipe, cubes, unitRecipes) {
   const ingVol = (recipe.ingredients||[]).reduce((sum, ing) => {
@@ -132,6 +148,7 @@ function cubeVolume(recipe, cubes, unitRecipes) {
   }, 0);
   return ingVol + unitVol;
 }
+window.cubeVolume = cubeVolume;
 
 function calcStock(cubes, schedules, recipes) {
   const used = {};
@@ -160,6 +177,7 @@ function calcStock(cubes, schedules, recipes) {
   });
   return { stock, status };
 }
+window.calcStock = calcStock;
 
 function getWeekDates(base) {
   const d = new Date(base), dow = d.getDay();
@@ -170,7 +188,9 @@ function getWeekDates(base) {
     return dd.toISOString().slice(0,10);
   });
 }
+window.getWeekDates = getWeekDates;
 
+// 공통 레이아웃 컴포넌트들 전역화
 function Overlay({ open, onClose, title, children, wide }) {
   if (!open) return null;
   return(
@@ -185,6 +205,7 @@ function Overlay({ open, onClose, title, children, wide }) {
     </div>
   );
 }
+window.Overlay = Overlay;
 
 function Field({ label, value, onChange, placeholder, type }) {
   return(
@@ -195,6 +216,7 @@ function Field({ label, value, onChange, placeholder, type }) {
     </div>
   );
 }
+window.Field = Field;
 
 function PillBtn({ children, onClick, color, small, outline, full, disabled }) {
   const bg = color || "#7BC67E";
@@ -207,6 +229,7 @@ function PillBtn({ children, onClick, color, small, outline, full, disabled }) {
     </button>
   );
 }
+window.PillBtn = PillBtn;
 
 function SortBar({ options, value, onChange }) {
   return(
@@ -222,14 +245,15 @@ function SortBar({ options, value, onChange }) {
     </div>
   );
 }
+window.SortBar = SortBar;
 
 function IngSearch({ value, onChange, cubes }) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState(value||"");
-  const [hov, setHov] = useState(null);
+  const [open, setOpen] = React.useState(false);
+  const [q, setQ] = React.useState(value||"");
+  const [hov, setHov] = React.useState(null);
   const allIngs = Array.from(new Set(cubes.map(c=>c.ingredient))).sort((a,b)=>a.localeCompare(b,"ko"));
   const filtered = q.trim() === "" ? allIngs : allIngs.filter(n=>n.includes(q));
-  useEffect(() => { setQ(value||""); }, [value]);
+  React.useEffect(() => { setQ(value||""); }, [value]);
   return(
     <div style={{position:"relative",flex:2}}>
       <input value={q}
@@ -265,7 +289,4 @@ function IngSearch({ value, onChange, cubes }) {
     </div>
   );
 }
-
-// ────────────────────────────
-// 레시피 탭
-// ────────────────────────────
+window.IngSearch = IngSearch;
