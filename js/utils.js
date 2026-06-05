@@ -3,12 +3,13 @@ const useState = React.useState;
 const useEffect = React.useEffect;
 const useCallback = React.useCallback;
 
-// ⚙️ 2. [★치명적 에러 원인] 누락되었던 오늘 날짜(YYYY-MM-DD) 구하는 함수 추가 및 전역화
-function todayStr() {
+// ⚙️ 2. [★충돌 해결] 함수명을 getTodayStr로 변경하여 변수명과의 충돌을 원천 차단
+function getTodayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-window.todayStr = todayStr; // 전역 바인딩
+window.getTodayStr = getTodayStr; // 신규 함수 전역 바인딩
+window.todayStr = getTodayStr;    // 기존 파일(todayStr() 호출 방식)들과의 하위 호환성을 위해 추가 바인딩
 
 // ⚙️ 3. 기존 utils 함수들 및 전역 바인딩
 function ingredientsToTokens(ingredients) {
@@ -291,9 +292,4 @@ function IngSearch({ value, onChange, cubes }) {
   );
 }
 window.IngSearch = IngSearch;
-
-window.useState = React.useState;
-window.useEffect = React.useEffect;
-window.useCallback = React.useCallback;
-window.useMemo = React.useMemo;
-window.useRef = React.useRef;
+// (불필요하고 위험한 맨 하단 중복 할당 구문 삭제 완료)
