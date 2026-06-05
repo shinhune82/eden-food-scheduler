@@ -1,10 +1,26 @@
-import React from 'react';
+// 인라인 바벨 환경 호환을 위해 import 구문 제거 및 전역 변수 참조 설정
+const todayStr = window.todayStr;
+const getWeekDates = window.getWeekDates;
+const fmtMD = window.fmtMD;
+const fmtFull = window.fmtFull;
+const uid = window.uid;
+const remapSlotsToDish = window.remapSlotsToDish;
+const rebuildSlotMap = window.rebuildSlotMap;
+const cubeVolume = window.cubeVolume;
+const ingredientsToTokens = window.ingredientsToTokens;
+const tokenLabel = window.tokenLabel;
+const Overlay = window.Overlay;
+const calcVaccDates = window.calcVaccDates;
 
-// 외부에서 가져오는 유틸 함수 및 상수가 있다고 가정 (프로젝트에 맞게 유지)
-// 예: todayStr, getWeekDates, fmtMD, fmtFull, uid, remapSlotsToDish, rebuildSlotMap, cubeVolume, ingredientsToTokens, tokenLabel, Overlay, WEEKDAYS, MEALS, MEAL_BG, MEAL_ICON
+// 기존 상수는 그대로 유지하되, 중복 선언 방지를 위해 window에 없을 때만 할당하거나 선언
+const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const MEALS = ["아침", "점심", "간식", "저녁"];
+const MEAL_ICON = { "아침": "☀️", "점심": "🌤️", "간식": "🍰", "저녁": "🌙" };
+const MEAL_BG = { "아침": "#fffae6", "점심": "#e6f7ff", "간식": "#f9f0ff", "저녁": "#f6fff5" };
+const SLOT_COLORS = ["#fff1f0", "#f5f5f5", "#e6f7ff", "#f6ffed", "#fff7e6"];
 
 function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, vaccData, stock, unitRecipes }) {
-  // 변수 및 상태 선언 최상단 정렬
+  // index.html에서 주입한 전역 React 훅 사용
   const [weekBase, setWeekBase] = React.useState(todayStr());
   const [modal, setModal] = React.useState(false);
   const [target, setTarget] = React.useState({date:"",meal:""});
@@ -22,7 +38,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   const today = todayStr();
   const getEntry = (date, meal) => schedules.find(s=>s.date===date&&s.meal===meal);
 
-  // ★ 호이스팅 및 안전성을 위해 customMode 판별 변수를 함수들보다 상단에 배치
   const isCustomMode = form.recipeId === "__custom__";
 
   const customUnitIngredients = isCustomMode
@@ -147,7 +162,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
         <div style={{background:"#fff0f0",border:"1.5px solid #ffb3b3",borderRadius:12,marginBottom:14,overflow:"hidden"}}>
           <div onClick={()=>setBannerOpen(v=>!v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",cursor:"pointer"}}>
             <span style={{fontWeight:700,fontSize:13,color:"#c00"}}>🚫 재료 소진 {disabledCount}개</span>
-            <span style={{fontSize:11,color:"#e55"}}>{bannerOpen ? "▲ 닫기":"▼ 목록 보기"}</span>
+            <span style={{fontSize:11,color:"#e55}}>{bannerOpen ? "▲ 닫기":"▼ 목록 보기"}</span>
           </div>
           {bannerOpen && (
             <div style={{fontSize:11,color:"#e55",padding:"0 14px 10px",lineHeight:1.8}}>
@@ -667,7 +682,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                               let oldArr = prevMap[slot] || [];
                               let nextArr = oldArr.includes(tk.tokenKey) ? oldArr.filter(x=>x!==tk.tokenKey) : [...oldArr, tk.tokenKey];
                               
-                              // 다른 슬롯에서 중복 배치를 제거해주는 위생 로직
                               const nextMap = {...prevMap};
                               Object.keys(nextMap).forEach(k => {
                                 if(nextMap[k]) nextMap[k] = nextMap[k].filter(x=>x!==tk.tokenKey);
@@ -685,7 +699,6 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
                 );
               }
 
-              // 비편집 모드 요약 노출
               const validTokens = slotTk.map(tKey => builtTokens.find(bt=>bt.tokenKey===tKey)).filter(Boolean);
               if(validTokens.length===0 && !assignedUnit) return null;
               return (
@@ -729,4 +742,5 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   );
 }
 
-export default ScheduleTab;
+// export default 구문 대신 브라우저 전역 객체(window)에 컴포넌트 할당
+window.ScheduleTab = ScheduleTab;
