@@ -39,7 +39,7 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
 
   const selRec = isCustomMode ? customRecipe : recipes.find(r=>r.id===form.recipeId);
   const selDish = dishes.find(d=>d.id===form.dishId);
-  const disabledCount = Object.values(recipeStatus).filter(s=>s.disabled).length;
+  const disabledCount = recipeStatus ? Object.values(recipeStatus).filter(s => s?.disabled).length : 0;
 
   const openCell = (date, meal) => {
     const ex = getEntry(date, meal);
