@@ -978,7 +978,3 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
     </div>
   );
 }
-
-// ────────────────────────────
-// 큐브 탭
-// ────────────────────────────
