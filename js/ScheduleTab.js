@@ -23,16 +23,17 @@ function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeSt
   const isCustomMode = form.recipeId === "__custom__";
 
   const customUnitIngredients = isCustomMode
-    ? ((form.customUnits||[]).flatMap(uId=>{
-        const u=(unitRecipes||[]).find(x=>x.id===uId);
-        return u ? (u.ingredients||[]) : [];
-      }))
-    : [];
+  ? ((form?.customUnits || []).flatMap(uId => {
+      if (!unitRecipes) return []; // unitRecipes가 없으면 빈 배열 반환
+      const u = unitRecipes.find(x => x && x.id === uId);
+      return u && u.ingredients ? u.ingredients : []; // u와 ingredients가 확실히 있을 때만 반환
+    }))
+  : [];
 
   const customRecipe = isCustomMode ? {
     id:"__custom__", name:"직접 구성", color:"#7BC67E",
     ingredients: [
-      ...(form.customIngredients||[]).map(ci=>({name:ci.name, cubeCount:ci.count})),
+      ...(form?.customIngredients||[]).map(ci=>({name:ci.name, cubeCount:ci.count})),
       ...customUnitIngredients,
     ]
   } : null;
