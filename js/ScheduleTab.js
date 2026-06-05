@@ -1,12 +1,3 @@
-const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
-const MEALS = ["아침", "점심", "간식", "저녁"];
-const MEAL_ICON = { "아침": "☀️", "점심": "🌤️", "간식": "🍌", "저녁": "🌙" };
-const MEAL_BG = { "아침": "#fffae6", "점심": "#e6f7ff", "간식": "#f9f0ff", "저녁": "#f6ffed" };
-const SLOT_COLORS = ["#fff1f0", "#f5f5f5", "#e6f7ff", "#f6ffed", "#fff7e6"];
-
-const todayStr = window.todayStr;
-const getWeekDates = window.getWeekDates;
-
 function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, vaccData, stock, unitRecipes }) {
   // 변수 및 상태 선언 최상단 정렬
   const [weekBase, setWeekBase] = React.useState(todayStr());
