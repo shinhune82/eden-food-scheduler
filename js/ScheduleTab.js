@@ -700,7 +700,7 @@
                 const assignedUnitId = currentSlotUnits[slot];
                 const assignedUnit = assignedUnitId && unitRecipes ? unitRecipes.find(u => u.id === assignedUnitId) : null;
 
-                const builtTokens = window.ingredientsToTokens ? window.ingredientsToTokens(selRec.ingredients || [], isCustomMode ? [] : (selRec.unitIds || []), unitRecipes) : [];
+                const builtTokens = window.ingredientsToTokens ? window.ingredientsToTokens(selRec.ingredients || [], [], unitRecipes) : [];
 
                 if (editSlots) {
                   return (
