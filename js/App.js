@@ -10,6 +10,7 @@ function App({ user }) {
   const [unitRecipes, setUnitRecipesRaw] = useState([]);
   const [vaccData, setVaccDataRaw] = useState({birth:"",appointments:[],customVaccs:[]});
   const [ready, setReady] = useState(false);
+  const saveEnabled = React.useRef(false);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(async (user) => {
@@ -56,6 +57,7 @@ function App({ user }) {
         setUnitRecipesRaw(Array.isArray(unit) ? unit : []);
         setVaccDataRaw(vacc && typeof vacc === "object" && vacc.appointments ? vacc : {birth:"",appointments:[],customVaccs:[]});
         setReady(true);
+        setTimeout(() => { saveEnabled.current = true; }, 1000); // 1초 후 저장 활성화
       };
       try {
         await init();
@@ -92,15 +94,15 @@ function App({ user }) {
     attempt(1);
   };
   
-  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(recipes.length===0) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.r,recipes); },[recipes,ready]);
-  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.s,schedules); },[schedules,ready]);
-  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(cubes.length===0) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.c,cubes); },[cubes,ready]);
-  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(dishes.length===0) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.d,dishes); },[dishes,ready]);
-  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(categories.length===0) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.cat,categories); },[categories,ready]);
-  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.making,makingIds); },[makingIds,ready]);
-  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.snack,snacks); },[snacks,ready]);
-  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.unit,unitRecipes); },[unitRecipes,ready]);
-  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.vacc,vaccData); },[vaccData,ready]);  
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.r,recipes); },[recipes,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.s,schedules); },[schedules,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.c,cubes); },[cubes,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.d,dishes); },[dishes,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.cat,categories); },[categories,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.making,makingIds); },[makingIds,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.snack,snacks); },[snacks,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.unit,unitRecipes); },[unitRecipes,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.vacc,vaccData); },[vaccData,ready]);
   
   // unitRecipes를 전역으로 노출 (calcStock 내부에서 접근)
   window._unitRecipes = unitRecipes;
