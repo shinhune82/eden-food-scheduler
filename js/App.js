@@ -92,15 +92,15 @@ function App({ user }) {
     attempt(1);
   };
   
-  useEffect(()=>{ if(!ready) return; if(recipes.length===0) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; console.log("💾 recipes 저장"); firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.r).set({value:JSON.stringify(recipes)}); },[recipes, ready]);
-  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.s).set({value:JSON.stringify(schedules)}); },[schedules, ready]);
-  useEffect(()=>{ if(!ready) return; if(cubes.length===0) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.c).set({value:JSON.stringify(cubes)}); },[cubes, ready]);
-  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.d).set({value:JSON.stringify(dishes)}); },[dishes, ready]);
-  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.cat).set({value:JSON.stringify(categories)}); },[categories, ready]);
-  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.making).set({value:JSON.stringify(makingIds)}); },[makingIds, ready]);
-  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.snack).set({value:JSON.stringify(snacks)}); },[snacks, ready]);
-  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.unit).set({value:JSON.stringify(unitRecipes)}); },[unitRecipes, ready]);
-  useEffect(()=>{ if(!ready) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; firebase.firestore().collection("users").doc(uid).collection("data").doc(STORAGE_KEYS.vacc).set({value:JSON.stringify(vaccData)}); },[vaccData, ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(recipes.length===0) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.r,recipes); },[recipes,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.s,schedules); },[schedules,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(cubes.length===0) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.c,cubes); },[cubes,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(dishes.length===0) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.d,dishes); },[dishes,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(categories.length===0) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.cat,categories); },[categories,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.making,makingIds); },[makingIds,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.snack,snacks); },[snacks,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.unit,unitRecipes); },[unitRecipes,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.vacc,vaccData); },[vaccData,ready]);  
   
   // unitRecipes를 전역으로 노출 (calcStock 내부에서 접근)
   window._unitRecipes = unitRecipes;
