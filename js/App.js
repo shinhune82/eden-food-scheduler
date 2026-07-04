@@ -45,16 +45,16 @@ function App({ user }) {
         const vacc = await fsGet(STORAGE_KEYS.vacc);
         const unit = await fsGet(STORAGE_KEYS.unit);
         console.log("📦 r:", r, "setRecipes 호출");
-        // null이면 빈 배열/기본값 사용 (INIT_ 데이터로 덮어쓰지 않음)
-        setRecipesRaw(r   || []);
-        setSchedulesRaw(s || []);
-        setCubesRaw(c     || []);
-        setDishesRaw(d    || INIT_DISHES);
-        setCategoriesRaw(cat || INIT_CATEGORIES);
-        setMakingIdsRaw(making || []);
-        setSnacksRaw(snack || []);
-        setUnitRecipesRaw(unit || []);
-        setVaccDataRaw(vacc || {birth:"",appointments:[],customVaccs:[]});
+        // 로드된 데이터가 배열인지 검증 후 세팅 (빈 배열/null이어도 안전하게 처리)
+        setRecipesRaw(Array.isArray(r) ? r : []);
+        setSchedulesRaw(Array.isArray(s) ? s : []);
+        setCubesRaw(Array.isArray(c) ? c : []);
+        setDishesRaw(Array.isArray(d) && d.length > 0 ? d : INIT_DISHES);
+        setCategoriesRaw(Array.isArray(cat) && cat.length > 0 ? cat : INIT_CATEGORIES);
+        setMakingIdsRaw(Array.isArray(making) ? making : []);
+        setSnacksRaw(Array.isArray(snack) ? snack : []);
+        setUnitRecipesRaw(Array.isArray(unit) ? unit : []);
+        setVaccDataRaw(vacc && typeof vacc === "object" && vacc.appointments ? vacc : {birth:"",appointments:[],customVaccs:[]});
         setReady(true);
       };
       try {
