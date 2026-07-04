@@ -61,12 +61,11 @@ async function dbGet(key, uid) {
   } catch(e) { console.error("dbGet error:", e); return null; }
 }
 async function dbSet(key, val, uid) {
-  try {
-    const userId = uid || (firebase.auth().currentUser && firebase.auth().currentUser.uid);
-    if (!userId) { console.warn("dbSet: userId 없음!"); return; }
-    const toStore = (typeof val === "object") ? JSON.stringify(val) : val;
-    await firebase.firestore().collection("users").doc(userId).collection("data").doc(key).set({ value: toStore });
-  } catch(e) { console.error("dbSet error:", e); }
+  // ★ 비활성화 — 실수로 빈 데이터 덮어쓰기 방지
+  // loadWithMigration의 마이그레이션 경로에서만 호출되던 함수
+  // 모든 저장은 App.js의 fsSave(가드 포함)가 담당
+  console.warn("dbSet 호출 차단됨:", key);
+  return;
 }
 async function dbGetLocal(key) { return dbGet(key); }
 
