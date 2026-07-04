@@ -69,10 +69,10 @@ function App({ user }) {
     return unsub;
   }, []);
 
-  const setRecipes    = useCallback(fn=>{setRecipesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.r,n);return n;});},[]);
-  const setSchedules  = useCallback(fn=>{setSchedulesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.s,n);return n;});},[]);
-  const setCubes      = useCallback(fn=>{setCubesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.c,n);return n;});},[]);
-  const setDishes     = useCallback(fn=>{setDishesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;dbSet(STORAGE_KEYS.d,n);return n;});},[]);
+  const setRecipes    = useCallback(fn=>{setRecipesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});},[]);
+  const setSchedules  = useCallback(fn=>{setSchedulesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});},[]);
+  const setCubes      = useCallback(fn=>{setCubesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});},[]);
+  const setDishes     = useCallback(fn=>{setDishesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});},[]);
   const setCategories = useCallback(fn=>{setCategoriesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setMakingIds  = useCallback(fn=>{setMakingIdsRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setSnacks     = useCallback(fn=>{setSnacksRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
