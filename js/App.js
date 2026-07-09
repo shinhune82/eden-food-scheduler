@@ -9,6 +9,7 @@ function App({ user }) {
   const [snacks, setSnacksRaw] = useState([]);
   const [unitRecipes, setUnitRecipesRaw] = useState([]);
   const [vaccData, setVaccDataRaw] = useState({birth:"",appointments:[],customVaccs:[]});
+  const [babyName, setBabyNameRaw] = useState("이든이");
   const [ready, setReady] = useState(false);
   const saveEnabled = React.useRef(false);
 
@@ -45,6 +46,7 @@ function App({ user }) {
         const snack = await fsGet(STORAGE_KEYS.snack);
         const vacc = await fsGet(STORAGE_KEYS.vacc);
         const unit = await fsGet(STORAGE_KEYS.unit);
+        const bname = await fsGet("bf_babyname");
         console.log("📦 r:", r, "setRecipes 호출");
         // 로드된 데이터가 배열인지 검증 후 세팅 (빈 배열/null이어도 안전하게 처리)
         setRecipesRaw(Array.isArray(r) ? r : []);
@@ -56,6 +58,7 @@ function App({ user }) {
         setSnacksRaw(Array.isArray(snack) ? snack : []);
         setUnitRecipesRaw(Array.isArray(unit) ? unit : []);
         setVaccDataRaw(vacc && typeof vacc === "object" && vacc.appointments ? vacc : {birth:"",appointments:[],customVaccs:[]});
+        setBabyNameRaw(typeof bname === "string" && bname.trim() ? bname : "이든이");
         setReady(true);
         setTimeout(() => { saveEnabled.current = true; }, 1000); // 1초 후 저장 활성화
       };
@@ -80,6 +83,7 @@ function App({ user }) {
   const setSnacks     = useCallback(fn=>{setSnacksRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setUnitRecipes = useCallback(fn=>{setUnitRecipesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setVaccData   = useCallback(fn=>{setVaccDataRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
+  const setBabyName   = useCallback(fn=>{setBabyNameRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
 
   // 저장 재시도 헬퍼
   const fsSave = (uid, key, value) => {
@@ -103,6 +107,7 @@ function App({ user }) {
   useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.snack,snacks); },[snacks,ready]);
   useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.unit,unitRecipes); },[unitRecipes,ready]);
   useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.vacc,vaccData); },[vaccData,ready]);
+  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,"bf_babyname",babyName); },[babyName,ready]);
   
   // unitRecipes를 전역으로 노출 (calcStock 내부에서 접근)
   window._unitRecipes = unitRecipes;
@@ -123,12 +128,13 @@ function App({ user }) {
   if (!ready) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",color:"#aaa",fontSize:16}}>로딩 중...</div>;
 
   const TABS = [
-    { label:"🍳 메인", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock} unitRecipes={unitRecipes} /> },
     { label:"📅 스케줄", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} vaccData={vaccData} stock={stock} unitRecipes={unitRecipes} /> },
-    { label:"🍱 유닛", el:<UnitRecipeTab unitRecipes={unitRecipes} setUnitRecipes={setUnitRecipes} cubes={cubes} stock={stock} categories={categories} /> },
-    { label:"🧊 큐브",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} makingIds={makingIds} setMakingIds={setMakingIds} /> },
+    { label:"🍳 식단구성", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock} unitRecipes={unitRecipes} /> },
+    { label:"🍱 단일레시피", el:<UnitRecipeTab unitRecipes={unitRecipes} setUnitRecipes={setUnitRecipes} cubes={cubes} stock={stock} categories={categories} /> },
+    { label:"🧊 냉동큐브",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} makingIds={makingIds} setMakingIds={setMakingIds} /> },
     { label:"🍽️ 식기",  el:<DishTab dishes={dishes} setDishes={setDishes} /> },
     { label:"💉 접종",   el:<VaccTab vaccData={vaccData} setVaccData={setVaccData} /> },
+    { label:"⚙️ 설정", el:<SettingTab babyName={babyName} setBabyName={setBabyName} /> },
   ];
 
   return(
@@ -139,7 +145,7 @@ function App({ user }) {
           {lastUpdated && <div style={{fontSize:10,opacity:0.75,background:"rgba(255,255,255,0.2)",borderRadius:10,padding:"3px 9px",marginTop:4}}>v{lastUpdated}</div>}
         </div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
-          <div style={{fontSize:12,opacity:0.85}}>이든이의 건강한 한 끼 🌱</div>
+          <div style={{fontSize:12,opacity:0.85}}>{babyName}의 건강한 한 끼 🌱</div>
           <button onClick={()=>auth.signOut()} style={{fontSize:11,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:10,padding:"4px 10px",color:"#fff",cursor:"pointer"}}>
             {user&&user.displayName?user.displayName.split(" ")[0]:""} 로그아웃
           </button>
@@ -154,7 +160,7 @@ function App({ user }) {
         ))}
       </div>
       <div style={{padding:"20px 16px 40px"}}>{TABS[tab].el}</div>
-      {(tab===0||tab===2||tab===3) && (
+      {(tab===1||tab===2||tab===3) && (
         <button onClick={()=>window.scrollTo({top:0,behavior:"smooth"})}
           style={{position:"fixed",bottom:24,right:20,width:44,height:44,borderRadius:"50%",background:"#7BC67E",color:"#fff",border:"none",fontSize:20,cursor:"pointer",boxShadow:"0 4px 12px rgba(0,0,0,0.2)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center"}}>
           ↑
