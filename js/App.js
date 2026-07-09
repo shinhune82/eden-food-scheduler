@@ -133,6 +133,7 @@ function App({ user }) {
     { label:"🍱 단일레시피", el:<UnitRecipeTab unitRecipes={unitRecipes} setUnitRecipes={setUnitRecipes} cubes={cubes} stock={stock} categories={categories} /> },
     { label:"🧊 냉동큐브",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} makingIds={makingIds} setMakingIds={setMakingIds} /> },
     { label:"🍽️ 식기",  el:<DishTab dishes={dishes} setDishes={setDishes} /> },
+    { label:"📖 블로그", el:<BlogTab /> },
     { label:"⚙️ 설정", el:<SettingTab babyName={babyName} setBabyName={setBabyName} /> },
   ];
 
