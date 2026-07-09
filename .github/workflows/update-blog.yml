@@ -1,9 +1,9 @@
 name: Update Blog Posts
 
 on:
-  workflow_dispatch:  # 수동 실행
+  workflow_dispatch:
   repository_dispatch:
-    types: [blog-updated]  # 워드프레스에서 신호 받을 때
+    types: [blog-updated]
 
 jobs:
   update-blog:
@@ -14,62 +14,41 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Fetch RSS and generate blog-posts.js
+      - name: Generate blog-posts.js
         run: |
-          cat > generate-blog.js << 'EOF'
+          node -e "
           const https = require('https');
           const fs = require('fs');
-
-          const RSS_URL = 'https://ednpapa.co.kr/feed';
-
-          https.get(RSS_URL, (res) => {
+          https.get('https://ednpapa.co.kr/feed', (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
               const items = [];
-              const itemMatches = data.match(/<item>([\s\S]*?)<\/item>/g) || [];
-              
-              itemMatches.slice(0, 20).forEach(item => {
+              const matches = data.match(/<item>([\s\S]*?)<\/item>/g) || [];
+              matches.slice(0, 20).forEach(item => {
                 const title = (item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || item.match(/<title>(.*?)<\/title>/))?.[1] || '';
                 const link = (item.match(/<link>(.*?)<\/link>/) || [])[1] || '';
                 const pubDate = (item.match(/<pubDate>(.*?)<\/pubDate>/) || [])[1] || '';
                 const desc = (item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/) || [])[1] || '';
-                const cats = [...(item.matchAll(/<category><!\[CDATA\[(.*?)\]\]><\/category>/g) || [])].map(m => m[1]);
-                
-                // 날짜 포맷
+                const cats = [...item.matchAll(/<category><!\[CDATA\[(.*?)\]\]><\/category>/g)].map(m => m[1]);
                 const d = new Date(pubDate);
-                const dateStr = isNaN(d) ? '' : `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                
-                // 설명 태그 제거 및 100자 제한
+                const dateStr = isNaN(d) ? '' : d.toISOString().slice(0,10);
                 const cleanDesc = desc.replace(/<[^>]+>/g, '').trim().slice(0, 100);
-                
-                // 카테고리 매핑
-                const catMap = { '이유식': '이유식', '육아': '육아', '건강': '건강', '레시피': '레시피', '성장': '성장' };
-                const category = cats.find(c => catMap[c]) || cats[0] || '육아';
-
-                if (title && link) {
-                  items.push({ title, url: link, date: dateStr, category, desc: cleanDesc });
-                }
+                const validCats = ['이유식','육아','건강','레시피','성장'];
+                const category = cats.find(c => validCats.includes(c)) || cats[0] || '육아';
+                if (title && link) items.push({ title, url: link, date: dateStr, category, desc: cleanDesc });
               });
-
-              const output = `// 자동 생성 파일 — 수정하지 마세요
-// 마지막 업데이트: ${new Date().toISOString()}
-window.BLOG_POSTS = ${JSON.stringify(items, null, 2)};
-`;
-              fs.writeFileSync('js/blog-posts.js', output);
-              console.log(`✅ ${items.length}개 글 생성 완료`);
+              const out = 'window.BLOG_POSTS = ' + JSON.stringify(items, null, 2) + ';';
+              fs.writeFileSync('js/blog-posts.js', out);
+              console.log(items.length + ' posts written');
             });
-          }).on('error', e => {
-            console.error('❌ RSS 가져오기 실패:', e.message);
-            process.exit(1);
-          });
-          EOF
-          node generate-blog.js
+          }).on('error', e => { console.error(e.message); process.exit(1); });
+          "
 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add js/blog-posts.js
-          git diff --staged --quiet || git commit -m "🤖 블로그 글 자동 업데이트"
+          git diff --staged --quiet || git commit -m "auto update blog posts"
           git push
