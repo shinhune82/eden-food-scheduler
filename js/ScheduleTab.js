@@ -222,7 +222,18 @@
                   const ent = getEntry(d, meal);
                   const rec = ent ? (ent.recipeId === "__custom__" ? {id: "__custom__", name: "직접 구성", color: "#7BC67E", ingredients: [], unitIds: []} : recipes.find(r => r.id === ent.recipeId)) : null;
                   const dis = rec && rec.id !== "__custom__" && (recipeStatus[rec.id] || {}).disabled;
-                  const vol = rec && window.cubeVolume ? window.cubeVolume(rec, cubes, unitRecipes) : 0;
+                  const volSource = ent && ent.recipeId === "__custom__"
+                    ? {
+                        ingredients: [
+                          ...(ent.customIngredients || []).map(ci => ({name: ci.name, cubeCount: ci.count})),
+                          ...(ent.customUnits || []).flatMap(uId => {
+                            const u = (unitRecipes || []).find(x => x.id === uId);
+                            return u ? (u.ingredients || []) : [];
+                          })
+                        ]
+                      }
+                    : rec;
+                  const vol = volSource && window.cubeVolume ? window.cubeVolume(volSource, cubes, unitRecipes) : 0;
                   const entSlotTokens = ent && ent.slots ? Object.values(ent.slots).flat() : [];
                   const entChecked = ent && ent.checked ? ent.checked : [];
                   const entTokens = entSlotTokens.length > 0 ? entSlotTokens : (rec && window.ingredientsToTokens ? window.ingredientsToTokens(rec.id === "__custom__" ? [] : rec.ingredients, rec.id === "__custom__" ? [] : rec.unitIds, unitRecipes).map(t => t.tokenKey) : []);
@@ -248,7 +259,7 @@
                         <div style={{textAlign: "center", width: "100%"}}>
                           {dis && <div style={{fontSize: 9, color: "#e55", fontWeight: 700}}>🚫재료없음</div>}
                           <div style={{fontSize: 10, fontWeight: 700, color: dis ? "#c88" : "#444", lineHeight: 1.3}}>{rec.id === "__custom__" ? "✏️ 직접구성" : rec.name}</div>
-                          {vol > 0 && <div style={{fontSize: 9, color: "#4a9", marginTop: 1}}>{vol}g</div>}
+                          {vol > 0 && <div style={{fontSize: 11, fontWeight: 800, color: "#fff", background: "#5BAD5E", borderRadius: 8, padding: "1px 6px", marginTop: 3, display: "inline-block"}}>{vol}g</div>}
                           {allDone && !dis && <div style={{fontSize: 9, color: "#4a9", fontWeight: 700, marginTop: 1}}>✓완료</div>}
                           {partDone && !dis && <div style={{fontSize: 9, color: "#f90", fontWeight: 700, marginTop: 1}}>⚠부족</div>}
                         </div>
