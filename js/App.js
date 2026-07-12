@@ -128,7 +128,7 @@ function App({ user }) {
   if (!ready) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",color:"#aaa",fontSize:16}}>로딩 중...</div>;
 
   const TABS = [
-    { label:"📅 일정", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} vaccData={vaccData} stock={stock} unitRecipes={unitRecipes} /> },
+    { label:"📅 일정", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} stock={stock} unitRecipes={unitRecipes} /> },
     { label:"🍳 식단", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock} unitRecipes={unitRecipes} /> },
     { label:"🍱 조리법", el:<UnitRecipeTab unitRecipes={unitRecipes} setUnitRecipes={setUnitRecipes} cubes={cubes} stock={stock} categories={categories} /> },
     { label:"🧊 재고관리",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} makingIds={makingIds} setMakingIds={setMakingIds} /> },
