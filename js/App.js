@@ -94,7 +94,6 @@ function App({ user }) {
   const setCategories = useCallback(fn=>{setCategoriesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setMakingIds  = useCallback(fn=>{setMakingIdsRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setSnacks     = useCallback(fn=>{setSnacksRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
-  const setUnitRecipes = useCallback(fn=>{setUnitRecipesRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setVaccData   = useCallback(fn=>{setVaccDataRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
   const setBabyName   = useCallback(fn=>{setBabyNameRaw(p=>{const n=typeof fn==="function"?fn(p):fn;return n;});}, []);
 
@@ -140,8 +139,8 @@ function App({ user }) {
   if (!ready) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",color:"#aaa",fontSize:16}}>로딩 중...</div>;
 
   const TABS = [
-    { label:"📅 일정", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} stock={stock} unitRecipes={unitRecipes} /> },
-    { label:"🍳 식단", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock} unitRecipes={unitRecipes} /> },
+    { label:"📅 일정", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} stock={stock} /> },
+    { label:"🍳 식단", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock}  /> },
     { label:"🧊 재고관리",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} makingIds={makingIds} setMakingIds={setMakingIds} /> },
     { label:"🍽️ 식기",  el:<DishTab dishes={dishes} setDishes={setDishes} /> },
     { label:"📖 블로그", el:<BlogTab /> },
