@@ -457,7 +457,7 @@
                   )}
                   {!isExCustom && rec.id !== "__custom__" && (
                     <div>
-                      {hasSlots && Object.values(slots).flat().length > 0 && dish.slots.map((slot, si) => {
+                      {hasSlots && (Object.values(slots).flat().length > 0 || (ent.slotUnits && Object.keys(ent.slotUnits).length > 0)) && dish.slots.map((slot, si) => {
                         const slotTokens = (slots[slot] || []);
                         // 저장된 슬롯 토큰은 검증 없이 표시 (필터 조건으로 슬롯이 사라지는 버그 수정)
                         const tokensToShow = slotTokens.map(tk => ({
