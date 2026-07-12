@@ -7,7 +7,6 @@ function App({ user }) {
   const [categories, setCategoriesRaw] = useState([]);
   const [makingIds, setMakingIdsRaw] = useState([]);
   const [snacks, setSnacksRaw] = useState([]);
-  const [unitRecipes, setUnitRecipesRaw] = useState([]);
   const [vaccData, setVaccDataRaw] = useState({birth:"",appointments:[],customVaccs:[]});
   const [babyName, setBabyNameRaw] = useState("이든이");
   const [ready, setReady] = useState(false);
@@ -47,16 +46,30 @@ function App({ user }) {
         const vacc = await fsGet(STORAGE_KEYS.vacc);
         const unit = await fsGet(STORAGE_KEYS.unit);
         const bname = await fsGet("bf_babyname");
+        
+        // ★ 마이그레이션: 기존 unitRecipes를 recipes에 type 필드와 함께 통합
+        const mergeRecipesAndUnits = (recipesArr, unitArr) => {
+          const withType = (recipesArr || []).map(x => ({...x, type: x.type || "일반"}));
+          const existingIds = new Set(withType.map(x => x.id));
+          const migratedUnits = (unitArr || [])
+            .filter(u => !existingIds.has(u.id)) // 이미 합쳐진 항목은 재추가 안 함 (idempotent)
+            .map(u => ({
+              id: u.id, name: u.name, color: u.color || "#7BC67E", note: u.note || "",
+              type: u.type || "기타", ingredients: u.ingredients || [],
+              unitIds: [], dishId: "", slotMap: {}, slotUnits: {},
+              favorite: false, updatedAt: u.updatedAt || ""
+            }));
+          return [...withType, ...migratedUnits];
+        };
         console.log("📦 r:", r, "setRecipes 호출");
         // 로드된 데이터가 배열인지 검증 후 세팅 (빈 배열/null이어도 안전하게 처리)
-        setRecipesRaw(Array.isArray(r) ? r : []);
+        setRecipesRaw(mergeRecipesAndUnits(Array.isArray(r) ? r : [], Array.isArray(unit) ? unit : []));
         setSchedulesRaw(Array.isArray(s) ? s : []);
         setCubesRaw(Array.isArray(c) ? c : []);
         setDishesRaw(Array.isArray(d) && d.length > 0 ? d : INIT_DISHES);
         setCategoriesRaw(Array.isArray(cat) && cat.length > 0 ? cat : INIT_CATEGORIES);
         setMakingIdsRaw(Array.isArray(making) ? making : []);
         setSnacksRaw(Array.isArray(snack) ? snack : []);
-        setUnitRecipesRaw(Array.isArray(unit) ? unit : []);
         setVaccDataRaw(vacc && typeof vacc === "object" && vacc.appointments ? vacc : {birth:"",appointments:[],customVaccs:[]});
         setBabyNameRaw(typeof bname === "string" && bname.trim() ? bname : "이든이");
         setReady(true);
@@ -105,12 +118,11 @@ function App({ user }) {
   useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.cat,categories); },[categories,ready]);
   useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.making,makingIds); },[makingIds,ready]);
   useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.snack,snacks); },[snacks,ready]);
-  useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.unit,unitRecipes); },[unitRecipes,ready]);
   useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,STORAGE_KEYS.vacc,vaccData); },[vaccData,ready]);
   useEffect(()=>{ if(!ready||typeof ready!=="boolean") return; if(!saveEnabled.current) return; const uid=firebase.auth().currentUser?.uid; if(!uid) return; fsSave(uid,"bf_babyname",babyName); },[babyName,ready]);
   
   // unitRecipes를 전역으로 노출 (calcStock 내부에서 접근)
-  window._unitRecipes = unitRecipes;
+  window._unitRecipes = recipes;
   const { stock, status } = calcStock(cubes, schedules, recipes);
   const hasEmpty = Object.values(stock).some(v=>v===0);
   const lastUpdated = [...recipes.map(r=>r.updatedAt||""), ...cubes.map(c=>c.updatedAt||"")].filter(Boolean).sort().reverse()[0] || null;
@@ -130,7 +142,6 @@ function App({ user }) {
   const TABS = [
     { label:"📅 일정", el:<ScheduleTab recipes={recipes} schedules={schedules} setSchedules={setSchedules} cubes={cubes} dishes={dishes} recipeStatus={status} stock={stock} unitRecipes={unitRecipes} /> },
     { label:"🍳 식단", el:<RecipeTab recipes={recipes} setRecipes={setRecipes} cubes={cubes} recipeStatus={status} dishes={dishes} stock={stock} unitRecipes={unitRecipes} /> },
-    { label:"🍱 조리법", el:<UnitRecipeTab unitRecipes={unitRecipes} setUnitRecipes={setUnitRecipes} cubes={cubes} stock={stock} categories={categories} /> },
     { label:"🧊 재고관리",   el:<CubeTab recipes={recipes} cubes={cubes} setCubes={setCubes} stock={stock} recipeStatus={status} categories={categories} setCategories={setCategories} makingIds={makingIds} setMakingIds={setMakingIds} /> },
     { label:"🍽️ 식기",  el:<DishTab dishes={dishes} setDishes={setDishes} /> },
     { label:"📖 블로그", el:<BlogTab /> },
