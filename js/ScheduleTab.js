@@ -45,7 +45,7 @@
     const [weekBase, setWeekBase] = React.useState(safeTodayStr());
     const [modal, setModal] = React.useState(false);
     const [target, setTarget] = React.useState({date:"", meal:""});
-    const [form, setForm] = React.useState({recipeId:"", dishId:"", amount:"", memo:"", checked:[], slots:{}, customMode:false, customIngredients:[], customUnits:[], customSlotUnits:{}, customSlotIngredients:{}, slotUnits:{}});
+    const [form, setForm] = React.useState({recipeId:"", dishId:"", amount:"", memo:"", checked:[], slots:{}, customMode:false, customIngredients:[], customUnits:[], customExcluded:{}, customSlotUnits:{}, customSlotIngredients:{}, slotUnits:{}});
     const [rdrop, setRdrop] = React.useState(false);
     const [ddrop, setDdrop] = React.useState(false);
     const [rdropSearch, setRdropSearch] = React.useState("");
@@ -65,7 +65,9 @@
       ? ((form?.customUnits || []).flatMap(uId => {
           if (!unitRecipes) return [];
           const u = unitRecipes.find(x => x && x.id === uId);
-          return u && u.ingredients ? u.ingredients : [];
+          if (!u || !u.ingredients) return [];
+          const excluded = (form.customExcluded && form.customExcluded[uId]) || [];
+          return u.ingredients.filter(ing => !excluded.includes(ing.name));
         }))
       : [];
 
@@ -113,8 +115,9 @@
             customUnits: isExCustom ? (ex.customUnits || []) : [],
             customSlotUnits: isExCustom ? (ex.slotUnits || {}) : {},
             customSlotIngredients: isExCustom ? (ex.slots || {}) : {},
+            customExcluded: isExCustom ? (ex.customExcluded || {}) : {},
           }
-        : {recipeId: "", dishId: "", amount: "", memo: "", checked: [], slots: {}, customMode: false, customIngredients: [], customUnits: [], customSlotUnits: {}, customSlotIngredients: {}, slotUnits: {}}
+        : {recipeId: "", dishId: "", amount: "", memo: "", checked: [], slots: {}, customMode: false, customIngredients: [], customUnits: [], customExcluded: {}, customSlotUnits: {}, customSlotIngredients: {}, slotUnits: {}}
       );
       setRdrop(false); setDdrop(false); setEditSlots(false);
       setModal(true);
@@ -150,6 +153,7 @@
         entryData.slots = form.customSlotIngredients || {};
         entryData.customIngredients = form.customIngredients || [];
         entryData.customUnits = form.customUnits || [];
+        entryData.customExcluded = form.customExcluded || {};
       }
       setSchedules(ss => [...ss.filter(s => !(s.date === target.date && s.meal === target.meal)), {id: safeUid(), date: target.date, meal: target.meal, ...entryData}]);
       setModal(false);
@@ -285,9 +289,11 @@
             ? [
                 ...(ent.customIngredients || []).map(ci => ({name: ci.name, cubeCount: ci.count})),
                 ...(ent.customUnits || []).flatMap(uId => {
-                  const u = (unitRecipes || []).find(x => x.id === uId);
-                  return u ? (u.ingredients || []) : [];
-                })
+                    const u = (unitRecipes || []).find(x => x.id === uId);
+                    if (!u) return [];
+                    const excluded = (ent.customExcluded && ent.customExcluded[uId]) || [];
+                    return (u.ingredients || []).filter(ing => !excluded.includes(ing.name));
+                  })
               ]
             : null;
           const recWithIngs = rec && isExCustom ? {...rec, ingredients: customIngList || []} : rec;
@@ -528,11 +534,11 @@
             <div style={{background: "#f4fbf6", border: "1.5px dashed #7BC67E", borderRadius: 12, padding: 12, marginBottom: 12}}>
               <div style={{fontWeight: 700, fontSize: 12, color: "#4a9", marginBottom: 8}}>🧺 직접 재료/유닛 담기</div>
               
-              {/* 유닛 레시피 담기 영역 */}
+              {/* 식단/레시피 담기 영역 — 여러 개 선택 + 재료 일부만 사용 가능 */}
               {unitRecipes && unitRecipes.length > 0 && (
                 <div style={{marginBottom: 10}}>
-                  <div style={{fontSize: 11, fontWeight: 700, color: "#666", marginBottom: 4}}>세트(유닛) 추가</div>
-                  <div style={{display: "flex", flexWrap: "wrap", gap: 6}}>
+                  <div style={{fontSize: 11, fontWeight: 700, color: "#666", marginBottom: 4}}>식단/레시피 추가 (여러 개 선택 가능)</div>
+                  <div style={{display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6}}>
                     {unitRecipes.map(ur => {
                       const hasUnit = (form.customUnits || []).includes(ur.id);
                       return (
@@ -540,7 +546,9 @@
                           setForm(f => {
                             const exist = (f.customUnits || []).includes(ur.id);
                             const nextUnits = exist ? f.customUnits.filter(id => id !== ur.id) : [...(f.customUnits || []), ur.id];
-                            return {...f, customUnits: nextUnits};
+                            const nextExcluded = {...(f.customExcluded || {})};
+                            if (exist) delete nextExcluded[ur.id]; // 선택 해제 시 제외 목록도 초기화
+                            return {...f, customUnits: nextUnits, customExcluded: nextExcluded};
                           });
                         }} style={{background: hasUnit ? ur.color : "#fff", border: "1px solid " + ur.color, color: hasUnit ? "#fff" : ur.color, borderRadius: 20, padding: "4px 10px", fontSize: 11, fontWeight: 600, cursor: "pointer"}}>
                           {hasUnit ? "✓ " + ur.name : "+ " + ur.name}
@@ -548,6 +556,39 @@
                       );
                     })}
                   </div>
+                  {/* 선택된 레시피별 재료 일부 제외 토글 */}
+                  {(form.customUnits || []).map(uId => {
+                    const ur = unitRecipes.find(x => x.id === uId);
+                    if (!ur || !ur.ingredients || ur.ingredients.length === 0) return null;
+                    const excluded = (form.customExcluded && form.customExcluded[uId]) || [];
+                    return (
+                      <div key={uId} style={{background: "#fff", border: "1px solid " + ur.color + "55", borderRadius: 10, padding: 8, marginBottom: 6}}>
+                        <div style={{fontSize: 10, fontWeight: 700, color: ur.color, marginBottom: 4}}>{ur.name}에서 사용할 재료 (탭하면 제외)</div>
+                        <div style={{display: "flex", flexWrap: "wrap", gap: 4}}>
+                          {ur.ingredients.map(ing => {
+                            const isExcluded = excluded.includes(ing.name);
+                            return (
+                              <button key={ing.name} onClick={() => {
+                                setForm(f => {
+                                  const cur = (f.customExcluded && f.customExcluded[uId]) || [];
+                                  const next = cur.includes(ing.name) ? cur.filter(n => n !== ing.name) : [...cur, ing.name];
+                                  return {...f, customExcluded: {...(f.customExcluded || {}), [uId]: next}};
+                                });
+                              }} style={{
+                                background: isExcluded ? "#f5f5f5" : ur.color + "22",
+                                border: "1px solid " + (isExcluded ? "#ddd" : ur.color + "66"),
+                                color: isExcluded ? "#bbb" : "#444",
+                                textDecoration: isExcluded ? "line-through" : "none",
+                                borderRadius: 20, padding: "2px 8px", fontSize: 10, cursor: "pointer"
+                              }}>
+                                {ing.name} x{ing.cubeCount}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
