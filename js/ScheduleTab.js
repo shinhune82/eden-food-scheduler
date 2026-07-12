@@ -79,7 +79,10 @@
 
     const selRec = isCustomMode ? customRecipe : recipes.find(r => r.id === form.recipeId);
     const selDish = dishes.find(d => d.id === form.dishId);
-    const disabledCount = recipeStatus ? Object.values(recipeStatus).filter(s => s?.disabled).length : 0;
+    const outOfStockCubes = recipeStatus
+      ? Array.from(new Set(Object.values(recipeStatus).flatMap(s => (s?.disabled && s.outOfStock) ? s.outOfStock : [])))
+      : [];
+    const disabledCount = outOfStockCubes.length;
 
     const openCell = (date, meal) => {
       const ex = getEntry(date, meal);
@@ -169,7 +172,7 @@
 
     return (
       <div>
-        {/* 재료 소진 알림 배너 */}
+        {/* 재료 소진 알림 배너 — 큐브 종류 표시 */}
         {disabledCount > 0 && (
           <div style={{background: "#fff0f0", border: "1.5px solid #ffb3b3", borderRadius: 12, marginBottom: 14, overflow: "hidden"}}>
             <div onClick={() => setBannerOpen(v => !v)} style={{display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 14px", cursor: "pointer"}}>
@@ -177,9 +180,9 @@
               <span style={{fontSize: 11, color: "#e55"}}>{bannerOpen ? "▲ 닫기" : "▼ 목록 보기"}</span>
             </div>
             {bannerOpen && (
-              <div style={{fontSize: 11, color: "#e55", padding: "0 14px 10px", lineHeight: 1.8}}>
-                {recipes.filter(r => (recipeStatus[r.id] || {}).disabled).map(r => (
-                  <span key={r.id} style={{marginRight: 8, display: "inline-block"}}>{r.name} ({(recipeStatus[r.id] || {}).outOfStock.join(", ")} 없음)</span>
+              <div style={{padding: "0 14px 10px", display: "flex", flexWrap: "wrap", gap: 6}}>
+                {outOfStockCubes.map(name => (
+                  <span key={name} style={{fontSize: 12, fontWeight: 700, color: "#c00", background: "#ffd6d6", borderRadius: 20, padding: "3px 10px"}}>{name} 0개</span>
                 ))}
               </div>
             )}
