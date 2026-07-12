@@ -3,7 +3,6 @@
   const MEALS = ["아침", "점심", "간식", "저녁"];
   const MEAL_ICON = { "아침": "☀️", "점심": "🌤️", "간식": "🍰", "저녁": "🌙" };
   const MEAL_BG = { "아침": "#fffae6", "점심": "#e6f7ff", "간식": "#f9f0ff", "저녁": "#f6fff5" };
-  const SLOT_COLORS = ["#fff1f0", "#f5f5f5", "#e6f7ff", "#f6ffed", "#fff7e6"];
 
   const safeFmtMD = (dateStr) => {
     if (window.fmtMD) return window.fmtMD(dateStr);
@@ -42,7 +41,7 @@
     return "id_" + Math.random().toString(36).substr(2, 9);
   };
 
-  function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, vaccData, stock, unitRecipes }) {
+  function ScheduleTab({ recipes, schedules, setSchedules, cubes, dishes, recipeStatus, stock, unitRecipes }) {
     const [weekBase, setWeekBase] = React.useState(safeTodayStr());
     const [modal, setModal] = React.useState(false);
     const [target, setTarget] = React.useState({date:"", meal:""});
@@ -138,8 +137,6 @@
       setDdrop(false);
     };
 
-    const toggleCheck = name => setForm(f => ({...f, checked: f.checked.includes(name) ? f.checked.filter(x => x !== name) : [...f.checked, name]}));
-
     const saveEntry = () => {
       if (!form.recipeId) return;
       if (!isCustomMode && (recipeStatus[form.recipeId] || {}).disabled) return;
@@ -156,13 +153,6 @@
     };
 
     const delEntry = () => { setSchedules(ss => ss.filter(s => !(s.date === target.date && s.meal === target.meal))); setModal(false); };
-
-    const startMove = (date, meal, e) => {
-      e.stopPropagation();
-      const ent = getEntry(date, meal);
-      if (!ent) return;
-      setMoveSource({date, meal});
-    };
 
     const doMove = (toDate, toMeal) => {
       if (!moveSource || moveSource === "standby") return;
@@ -196,48 +186,6 @@
           </div>
         )}
 
-        {/* 예방접종 주간 알림 배너 */}
-        {(() => {
-          const birth = vaccData && vaccData.birth;
-          if (!birth) return null;
-          const vaccDates = window.calcVaccDates ? (window.calcVaccDates(birth) || []) : [];
-          const appts = (vaccData && vaccData.appointments) || [];
-          const weekAppts = vaccDates.filter(item => {
-            const a = appts.find(x => x.vaccId === item.id);
-            if (!a || !a.date || a.done) return false;
-            return a.date >= weekDates[0] && a.date <= weekDates[6];
-          });
-          const dueSoon = vaccDates.filter(item => {
-            const a = appts.find(x => x.vaccId === item.id);
-            if (a && a.done) return false;
-            return item.dateMin <= weekDates[6] && item.dateMax >= today;
-          });
-          if (weekAppts.length === 0 && dueSoon.length === 0) return null;
-          return (
-            <div style={{marginBottom: 10}}>
-              {weekAppts.length > 0 && (
-                <div style={{background: "#f0f6ff", border: "1.5px solid #74B5F5", borderRadius: 12, padding: "8px 14px", marginBottom: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap"}}>
-                  <span style={{fontSize: 13}}>📅</span>
-                  <span style={{fontWeight: 700, fontSize: 12, color: "#48a", flex: 1}}>
-                    이번 주 접종 예약: {weekAppts.map(v => {
-                      const a = appts.find(x => x.vaccId === v.id);
-                      return v.abbr + (v.totalDoses > 1 ? " " + v.dose + "차" : "") + " (" + safeFmtMD(a.date) + ")";
-                    }).join(", ")}
-                  </span>
-                </div>
-              )}
-              {dueSoon.length > 0 && (
-                <div style={{background: "#fff8f0", border: "1.5px solid #F4A261", borderRadius: 12, padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap"}}>
-                  <span style={{fontSize: 13}}>💉</span>
-                  <span style={{fontWeight: 700, fontSize: 12, color: "#c85", flex: 1}}>
-                    접종 시기: {dueSoon.map(v => v.abbr + (v.totalDoses > 1 ? " " + v.dose + "차" : "")).join(", ")}
-                  </span>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-
         {/* 주간 네비게이션 */}
         <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10}}>
           <button onClick={() => { const d = new Date(weekBase); d.setDate(d.getDate() - 7); setWeekBase(d.toISOString().slice(0, 10)); }} style={{background: "#f0f0f0", border: "none", borderRadius: 10, padding: "6px 14px", cursor: "pointer", fontSize: 18}}>&#8249;</button>
@@ -259,15 +207,6 @@
               {weekDates.map((d, i) => (
                 <div key={d} onClick={() => setDayView(d)} style={{textAlign: "center", fontSize: 11, fontWeight: 700, color: d === today ? "#7BC67E" : i >= 5 ? "#E78F8F" : "#888", padding: "4px 0", cursor: "pointer", background: dayView === d ? "#e8f8f0" : "transparent", borderRadius: 8}}>
                   {WEEKDAYS[i]}<br/><span style={{fontSize: 13, color: d === today ? "#7BC67E" : "#555"}}>{safeFmtMD(d).includes('/') ? safeFmtMD(d) : safeFmtMD(d).slice(3)}</span>
-                  {(() => {
-                    if (!vaccData || !vaccData.birth || !window.calcVaccDates) return null;
-                    const dayDue = (window.calcVaccDates(vaccData.birth) || []).filter(item => {
-                      const a = (vaccData.appointments || []).find(x => x.vaccId === item.id);
-                      return a && !a.done && a.date === d;
-                    });
-                    if (dayDue.length === 0) return null;
-                    return <div style={{fontSize: 9, color: "#74B5F5", fontWeight: 700, marginTop: 1}}>💉{dayDue.length}</div>;
-                  })()}
                 </div>
               ))}
             </div>
@@ -384,12 +323,10 @@
                 <div style={{padding: "10px 16px"}}>
                   {isExCustom && (
                     <div>
-                      {/* 💡 [수정] 직접구성 시 세트(유닛) 배지가 식판 내부 슬롯 단위로 들어가도록 하단 식판 루프 내부로 병합 및 상단 부유구문 제거 */}
                       {hasSlots && (Object.values(slots).flat().length > 0 || (ent.slotUnits && Object.keys(ent.slotUnits).length > 0)) && dish.slots.map((slot, si) => {
                         const slotTokens = (slots[slot] || []);
                         const tokensToShow = slotTokens.map(tk => ({tokenKey: tk, ingName: tk.split("__g")[0]})).filter(Boolean);
                         
-                        // 현재 슬롯에 맵핑 배정된 유닛 정보 확인
                         const assignedUnitId = ent.slotUnits && ent.slotUnits[slot];
                         const assignedUnit = assignedUnitId && unitRecipes ? unitRecipes.find(u => u.id === assignedUnitId) : null;
                       
@@ -555,7 +492,7 @@
                       {list.map((r, ri) => {
                         const st = recipeStatus[r.id] || {disabled: false, outOfStock: []};
                         return (
-                          <div key={r.id} onClick={() => pickRecipe(r.id, list)} style={{padding: "10px 14px", cursor: st.disabled ? "not-allowed" : "pointer", background: form.recipeId === r.id ? "#f0fcf4" : st.disabled ? "#fcfcfc" : "#fff", borderBottom: "1px solid #f5f5f5", display: "flex", alignItems: "center", justifycontent: "space-between", opacity: st.disabled ? 0.5 : 1}}>
+                          <div key={r.id} onClick={() => pickRecipe(r.id, list)} style={{padding: "10px 14px", cursor: st.disabled ? "not-allowed" : "pointer", background: form.recipeId === r.id ? "#f0fcf4" : st.disabled ? "#fcfcfc" : "#fff", borderBottom: "1px solid #f5f5f5", display: "flex", alignItems: "center", justifyContent: "space-between", opacity: st.disabled ? 0.5 : 1}}>
                             <span style={{display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: st.disabled ? "#aaa" : "#333", fontWeight: form.recipeId === r.id ? 700 : 400}}>
                               <span style={{width: 8, height: 8, borderRadius: "50%", background: r.color}}/>
                               {r.name} {r.favorite && "⭐"}
@@ -710,7 +647,7 @@
                         {assignedUnit && <span style={{background: assignedUnit.color + "22", color: assignedUnit.color, fontSize: 10, padding: "1px 6px", borderRadius: 6}}>{assignedUnit.name}</span>}
                       </div>
                       
-                      {/* 유닛 레시피 배치 */}
+                      {/* 유닛 레시피 배치 — 직접구성/일반 레시피 모두 지원 */}
                       {(() => {
                         const unitIds = isCustomMode 
                           ? (form.customUnits || []) 
@@ -735,7 +672,7 @@
                                       return {...f, [slotUnitsField]: nextSU};
                                     });
                                   }} style={{background: isAssigned ? u.color : "#fff", border: "1px solid " + u.color, color: isAssigned ? "#fff" : u.color, borderRadius: 4, padding: "2px 6px", fontSize: 10, cursor: "pointer"}}>
-                                    {u.name}
+                                    {isAssigned ? "✓ " : ""}{u.name}
                                   </button>
                                 );
                               })}
