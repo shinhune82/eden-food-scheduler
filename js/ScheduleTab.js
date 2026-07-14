@@ -533,9 +533,7 @@
           {isCustomMode && (
             <div style={{background: "#f4fbf6", border: "1.5px dashed #7BC67E", borderRadius: 12, padding: 12, marginBottom: 12}}>
               <div style={{fontWeight: 700, fontSize: 12, color: "#4a9", marginBottom: 8}}>🧺 직접 재료/유닛 담기</div>
-              <div style={{color: "red", fontWeight: 800, fontSize: 14, background: "#fff", padding: 8, marginBottom: 8, border: "2px solid red"}}>
-                DEBUG: unitRecipes = {unitRecipes ? unitRecipes.length : "undefined/null"}개
-              </div>
+            
               
               {/* 식단/레시피 담기 영역 — 여러 개 선택 + 재료 일부만 사용 가능 */}
               {unitRecipes && unitRecipes.length > 0 && (
