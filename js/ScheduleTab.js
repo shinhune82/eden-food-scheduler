@@ -727,38 +727,22 @@
                                       const prevMap = {...(f[targetField] || {})};
                                       const nextSU = {...prevSU};
                                   
-                                      const tokenKeysOf = (unitObj) => {
-                                        const toks = window.ingredientsToTokens ? window.ingredientsToTokens(unitObj.ingredients || []) : [];
-                                        return toks.map(t => t.tokenKey);
-                                      };
-                                      const removeUnitTokensFromSlot = (slotName, unitObj) => {
-                                        if (!unitObj) return;
-                                        const names = new Set((unitObj.ingredients || []).map(ing => ing.name));
-                                        prevMap[slotName] = (prevMap[slotName] || []).filter(tk => !names.has(tk.split("__g")[0]));
-                                      };
-                                  
                                       if (isAssigned) {
-                                        // 배정 해제: 슬롯 배정 지우고, 이 유닛의 재료 토큰도 완전히 제거
+                                        // 배정 해제: 슬롯 배정 지우고, 이 슬롯의 재료 토큰도 완전히 비움
                                         delete nextSU[slot];
-                                        removeUnitTokensFromSlot(slot, u);
+                                        prevMap[slot] = [];
                                       } else {
-                                        // 이 슬롯에 이미 다른 유닛이 배정돼 있었다면, 그 유닛 재료를 먼저 통째로 제거 (겹치지 않는 재료도 포함)
-                                        const prevAssignedId = prevSU[slot];
-                                        if (prevAssignedId && prevAssignedId !== uId) {
-                                          const prevUnit = (unitRecipes || []).find(x => x.id === prevAssignedId);
-                                          removeUnitTokensFromSlot(slot, prevUnit);
-                                        }
-                                  
-                                        // 새 유닛 배정 + 재료 토큰 채우기
+                                        // 새 유닛 배정: 이 유닛의 재료 토큰으로 슬롯을 통째로 새로 채움 (기존 내용은 대체)
                                         nextSU[slot] = uId;
+                                        const uTokens = window.ingredientsToTokens ? window.ingredientsToTokens(u.ingredients || []) : [];
+                                        prevMap[slot] = uTokens.map(t => t.tokenKey);
+                                  
+                                        // 다른 슬롯에서 같은 재료 이름이 중복 사용되지 않도록 제거
                                         const uNames = new Set((u.ingredients || []).map(ing => ing.name));
                                         Object.keys(prevMap).forEach(k => {
                                           if (k === slot) return;
                                           prevMap[k] = (prevMap[k] || []).filter(tk => !uNames.has(tk.split("__g")[0]));
                                         });
-                                        const uTokenKeys = tokenKeysOf(u);
-                                        const cur = prevMap[slot] || [];
-                                        prevMap[slot] = Array.from(new Set([...cur, ...uTokenKeys]));
                                       }
                                   
                                       return {...f, [slotUnitsField]: nextSU, [targetField]: prevMap};
