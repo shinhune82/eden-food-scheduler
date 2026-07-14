@@ -703,7 +703,7 @@
                         {assignedUnit && <span style={{background: assignedUnit.color + "22", color: assignedUnit.color, fontSize: 10, padding: "1px 6px", borderRadius: 6}}>{assignedUnit.name}</span>}
                       </div>
                       
-                      {/* 유닛 레시피 배치 — 직접구성/일반 레시피 모두 지원 */}
+                      {/* 유닛 레시피 배치 — 직접구성/일반 레시피 모두 지원, 배치 시 재료 큐브도 함께 자동 체크 */}
                       {(() => {
                         const unitIds = isCustomMode 
                           ? (form.customUnits || []) 
@@ -723,9 +723,32 @@
                                   <button key={uId} onClick={() => {
                                     setForm(f => {
                                       const nextSU = {...(f[slotUnitsField] || {})};
-                                      if (isAssigned) delete nextSU[slot];
-                                      else nextSU[slot] = uId;
-                                      return {...f, [slotUnitsField]: nextSU};
+                                      const targetField = isCustomMode ? 'customSlotIngredients' : 'slots';
+                                      const prevMap = {...(f[targetField] || {})};
+                      
+                                      if (isAssigned) {
+                                        // 배정 해제: 슬롯 배정도 지우고, 이 유닛의 재료 토큰도 슬롯에서 제거
+                                        delete nextSU[slot];
+                                        const uTokens = window.ingredientsToTokens ? window.ingredientsToTokens(u.ingredients || []) : [];
+                                        const uTokenKeys = uTokens.map(t => t.tokenKey);
+                                        const remaining = (prevMap[slot] || []).filter(tk => !uTokenKeys.some(uk => uk.split("__g")[0] === tk.split("__g")[0]));
+                                        prevMap[slot] = remaining;
+                                      } else {
+                                        // 배정: 이 유닛의 재료 토큰들을 해당 슬롯에 자동으로 채워넣기 (다른 슬롯에 있던 동일 재료는 제거)
+                                        nextSU[slot] = uId;
+                                        const uTokens = window.ingredientsToTokens ? window.ingredientsToTokens(u.ingredients || []) : [];
+                                        const uTokenKeys = uTokens.map(t => t.tokenKey);
+                                        Object.keys(prevMap).forEach(k => {
+                                          if (prevMap[k]) {
+                                            prevMap[k] = prevMap[k].filter(tk => !uTokenKeys.some(uk => uk.split("__g")[0] === tk.split("__g")[0]));
+                                          }
+                                        });
+                                        const cur = prevMap[slot] || [];
+                                        const merged = Array.from(new Set([...cur, ...uTokenKeys]));
+                                        prevMap[slot] = merged;
+                                      }
+                      
+                                      return {...f, [slotUnitsField]: nextSU, [targetField]: prevMap};
                                     });
                                   }} style={{background: isAssigned ? u.color : "#fff", border: "1px solid " + u.color, color: isAssigned ? "#fff" : u.color, borderRadius: 4, padding: "2px 6px", fontSize: 10, cursor: "pointer"}}>
                                     {isAssigned ? "✓ " : ""}{u.name}
