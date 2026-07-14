@@ -727,22 +727,68 @@
                                       const prevMap = {...(f[targetField] || {})};
                                       const nextSU = {...prevSU};
                                   
-                                      if (isAssigned) {
-                                        // 배정 해제: 슬롯 배정 지우고, 이 슬롯의 재료 토큰도 완전히 비움
-                                        delete nextSU[slot];
-                                        prevMap[slot] = [];
-                                      } else {
-                                        // 새 유닛 배정: 이 유닛의 재료 토큰으로 슬롯을 통째로 새로 채움 (기존 내용은 대체)
-                                        nextSU[slot] = uId;
-                                        const uTokens = window.ingredientsToTokens ? window.ingredientsToTokens(u.ingredients || []) : [];
-                                        prevMap[slot] = uTokens.map(t => t.tokenKey);
+                                      // 이 유닛이 실제로 기여하는 토큰 키를 "전체 재료 목록과 동일한 번호 기준"으로 정확히 계산
+                                      // (전체 목록 안에서의 등장 순서에 따라 __gN 번호가 매겨지므로, prefix-diff 방식으로 구함)
+                                      const getUnitTokenKeys = (targetUId) => {
+                                        if (!isCustomMode) {
+                                          // 일반 레시피 모드: unitIds 순서 기준
+                                          const idsList = (selRec && selRec.unitIds) || [];
+                                          const idx = idsList.indexOf(targetUId);
+                                          if (idx === -1) return [];
+                                          const baseIngs = []; // 일반 모드는 별도 customIngredients 없음, selRec.ingredients 자체가 기본 재료
+                                          let before = [...baseIngs];
+                                          for (let i = 0; i < idx; i++) {
+                                            const uu = (unitRecipes || []).find(x => x.id === idsList[i]);
+                                            if (uu) before = before.concat(uu.ingredients || []);
+                                          }
+                                          const including = before.concat(((unitRecipes || []).find(x => x.id === targetUId) || {}).ingredients || []);
+                                          const tokensBefore = window.ingredientsToTokens ? window.ingredientsToTokens(before) : [];
+                                          const tokensIncluding = window.ingredientsToTokens ? window.ingredientsToTokens(including) : [];
+                                          const beforeKeys = new Set(tokensBefore.map(t => t.tokenKey));
+                                          return tokensIncluding.filter(t => !beforeKeys.has(t.tokenKey)).map(t => t.tokenKey);
+                                        }
+                                        // 직접구성 모드: customIngredients + customUnits 순서 기준
+                                        const idsList = f.customUnits || [];
+                                        const idx = idsList.indexOf(targetUId);
+                                        if (idx === -1) return [];
+                                        const baseIngs = (f.customIngredients || []).map(ci => ({name: ci.name, cubeCount: ci.count}));
+                                        let before = [...baseIngs];
+                                        for (let i = 0; i < idx; i++) {
+                                          const uu = (unitRecipes || []).find(x => x.id === idsList[i]);
+                                          if (!uu) continue;
+                                          const excl = (f.customExcluded && f.customExcluded[idsList[i]]) || [];
+                                          before = before.concat((uu.ingredients || []).filter(ing => !excl.includes(ing.name)));
+                                        }
+                                        const thisU = (unitRecipes || []).find(x => x.id === targetUId);
+                                        const thisExcl = (f.customExcluded && f.customExcluded[targetUId]) || [];
+                                        const including = before.concat(thisU ? (thisU.ingredients || []).filter(ing => !thisExcl.includes(ing.name)) : []);
+                                        const tokensBefore = window.ingredientsToTokens ? window.ingredientsToTokens(before) : [];
+                                        const tokensIncluding = window.ingredientsToTokens ? window.ingredientsToTokens(including) : [];
+                                        const beforeKeys = new Set(tokensBefore.map(t => t.tokenKey));
+                                        return tokensIncluding.filter(t => !beforeKeys.has(t.tokenKey)).map(t => t.tokenKey);
+                                      };
                                   
-                                        // 다른 슬롯에서 같은 재료 이름이 중복 사용되지 않도록 제거
-                                        const uNames = new Set((u.ingredients || []).map(ing => ing.name));
+                                      if (isAssigned) {
+                                        // 배정 해제: 슬롯 배정 지우고, 이 유닛이 채웠던 토큰만 정확히 제거
+                                        delete nextSU[slot];
+                                        const myKeys = new Set(getUnitTokenKeys(uId));
+                                        prevMap[slot] = (prevMap[slot] || []).filter(tk => !myKeys.has(tk));
+                                      } else {
+                                        // 이 슬롯에 이미 다른 유닛이 있었다면 그 유닛 토큰을 먼저 제거
+                                        const prevAssignedId = prevSU[slot];
+                                        if (prevAssignedId && prevAssignedId !== uId) {
+                                          const oldKeys = new Set(getUnitTokenKeys(prevAssignedId));
+                                          prevMap[slot] = (prevMap[slot] || []).filter(tk => !oldKeys.has(tk));
+                                        }
+                                        nextSU[slot] = uId;
+                                        const myKeys = getUnitTokenKeys(uId);
+                                        // 다른 슬롯에 있던 동일 토큰은 제거(중복 방지)
                                         Object.keys(prevMap).forEach(k => {
                                           if (k === slot) return;
-                                          prevMap[k] = (prevMap[k] || []).filter(tk => !uNames.has(tk.split("__g")[0]));
+                                          prevMap[k] = (prevMap[k] || []).filter(tk => !myKeys.includes(tk));
                                         });
+                                        const cur = prevMap[slot] || [];
+                                        prevMap[slot] = Array.from(new Set([...cur, ...myKeys]));
                                       }
                                   
                                       return {...f, [slotUnitsField]: nextSU, [targetField]: prevMap};
